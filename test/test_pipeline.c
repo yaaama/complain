@@ -121,7 +121,7 @@ Test (pipeline_tests, test_pipeline_dispatcher) {
     msg_t message;
     const char *json_str = "{\"method\":\"exit\"}";
 
-    strcpy(message. content, json_str);
+    strcpy(message.content, json_str);
     message.len = strlen(json_str);
 
     int result = pipeline_dispatcher(&message);

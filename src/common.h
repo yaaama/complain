@@ -1,6 +1,8 @@
 #ifndef COMMON_H_
 #define COMMON_H_
 
+#include <stdbool.h>
+
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
@@ -21,4 +23,11 @@ typedef double f64;
 
 #define ARRAY_LENGTH(a) (sizeof((a)) / sizeof(((a)[0])))
 
-#endif // COMMON_H_
+void trim_trailing_ws(char *str, u64 len);
+
+char *trim_leading_ws(char *str);
+
+bool xis_space(char c);
+
+u32 hash_string(const char *str);
+#endif  // COMMON_H_

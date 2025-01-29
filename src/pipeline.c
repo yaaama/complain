@@ -1,3 +1,5 @@
+#include "pipeline.h"
+
 #include <assert.h>
 #include <cjson/cJSON.h>
 #include <ctype.h>
@@ -11,39 +13,13 @@
 
 #include "common.h"
 #include "logging.h"
-#include "pipeline.h"
 
 #define buffer_size 512
 
-bool xis_space (const char c) {
-    return (c == ' ' || c == '\n' || c == '\f' || c == '\t' || c == '\r' ||
-            c == '\v');
-}
 
-char *trim_leading_ws (char *str) {
-    while (str && xis_space(*str)) {
-        str++;
-    }
-    return str;
-}
-
-void trim_trailing_ws (char *str, u64 len) {
-    if ((!str) || (len == 0)) {
-        return;
-    }
-    assert(str);
-    assert(len > 0);
-
-    char *end = str + len - 1;
-
-    /* assert((str + len - 1) > (end)); */
-
-    while ((end > str) && (xis_space(*end))) {
-        --end;
-    }
-    *(end + 1) = '\0';
-}
-
+/* Parse Content Length ********************************************************/
+/* Takes a Content Length header line, and tries to parse the length value from
+it.  */
 u64 pipeline_parse_content_len (char *text) {
 
     log_debug("Parsing content length from string `%s`", text);
@@ -94,7 +70,6 @@ bool is_header_break_line (char *line) {
     if (strcmp(header_break, (line)) == 0) {
         return true;
     }
-
     return false;
 }
 
@@ -144,16 +119,6 @@ int pipeline_read (FILE *to_read, msg_t *out) {
 }
 
 
-/* Custom hash function (example) */
-u32 hash_string (const char *str) {
-    size_t hash = 5381; /* Initial value for djb2 */
-    u8 c;
-    while ((c = *str++)) {
-        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-    }
-    return hash;
-}
-
 /* Lookup table entry */
 struct method_entry {
     const char *str;
@@ -183,8 +148,8 @@ static struct method_entry method_table[] = {
     {"textDocument_completion", textDocument_completion, 0},
     {"textDocument_didOpen", textDocument_didOpen, 0}};
 
-
 static bool is_initialised = false;
+
 /* Initialize hashes when program starts */
 void init_method_table (void) {
 
@@ -229,7 +194,7 @@ int pipeline_determine_method_type (char *method_str) {
                 if (strcmp(method_str, method_table[i].str) == 0) {
                     return method_table[i].type;
                 }
-                i--;
+                --i;
             }
             i = mid + 1;
             while (i < ARRAY_LENGTH(method_table) &&
@@ -237,7 +202,7 @@ int pipeline_determine_method_type (char *method_str) {
                 if (strcmp(method_str, method_table[i].str) == 0) {
                     return method_table[i].type;
                 }
-                i++;
+                ++i;
             }
             return -1; /* No match found */
         }
@@ -245,6 +210,7 @@ int pipeline_determine_method_type (char *method_str) {
     return -1; /* No match found */
 }
 
+/* Takes a message, and then acts on it. */
 int pipeline_dispatcher (msg_t *message) {
 
     if (!message) {

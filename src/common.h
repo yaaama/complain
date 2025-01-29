@@ -19,5 +19,6 @@ typedef long long i64;
 typedef float f32;
 typedef double f64;
 
+#define ARRAY_LENGTH(a) (sizeof((a)) / sizeof(((a)[0])))
 
 #endif // COMMON_H_

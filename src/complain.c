@@ -1,5 +1,13 @@
+#include "logging.h"
+#include "pipeline.h"
+#include <stdio.h>
 
-/* Entry Point */
-/* int main(void) {
- *   return 0;
- * } */
+
+/* Main entry point */
+int main (void) {
+
+    log_info("Program has started.");
+    init_pipeline(stdin);
+
+    return 0;
+}

@@ -1,0 +1,17 @@
+---
+BasedOnStyle: Google
+IndentWidth: 4
+IndentCaseBlocks: true
+IndentCaseLabels: true
+# IndentExternBlockStyle: Indent
+KeepEmptyLines:
+  AtStartOfBlock: true
+  AtStartOfFile: true
+MaxEmptyLinesToKeep: 1
+SeparateDefinitionBlocks: Always
+SpaceBeforeAssignmentOperators: true
+# Example of usage:
+SpaceBeforeParens: Custom
+SpaceBeforeParensOptions:
+  AfterControlStatements: true
+  AfterFunctionDefinitionName: true

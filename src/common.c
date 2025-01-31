@@ -35,8 +35,11 @@ void trim_trailing_ws (char *str, u64 len) {
 
 
 /* Creates a perfect hash of a string */
-u32 hash_string (const char *str) {
-    u32 hash = 5381; /* Initial value for djb2 */
+u64 hash_string (const char *str) {
+    if (!str) {
+        return 0;
+    }
+    u64 hash = 5381; /* Initial value for djb2 */
     u8 c;
     while ((c = *str++)) {
         hash = ((hash << 5) + hash) + c; /* hash * 33 + c */

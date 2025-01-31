@@ -29,5 +29,5 @@ char *trim_leading_ws(char *str);
 
 bool xis_space(char c);
 
-u32 hash_string(const char *str);
+u64 hash_string(const char *str);
 #endif  // COMMON_H_

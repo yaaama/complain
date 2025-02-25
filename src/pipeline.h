@@ -13,10 +13,12 @@ typedef struct msg_t {
 } msg_t;
 
 enum method_type {
-    initialise,
-    initialised,
+    initialize,
+    initialized,
     textDocument_didOpen,
     textDocument_completion,
+    textDocument_didChange,
+    textDocument_didClose,
     shutdown,
     exit_,
 };
@@ -27,8 +29,5 @@ int pipeline_read(FILE *to_read, msg_t *out);
 int pipeline_determine_method_type(char *method_str);
 int pipeline_dispatcher(msg_t *message);
 int init_pipeline(FILE *to_read);
-char *trim_leading_ws(char *str);
-void trim_trailing_ws(char *str, u64 len);
-void init_method_table(void);
 
 #endif  // PIPELINE_H_

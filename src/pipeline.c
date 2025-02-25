@@ -2,7 +2,6 @@
 
 #include <assert.h>
 #include <cjson/cJSON.h>
-#include <ctype.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -16,8 +15,8 @@
 
 #define buffer_size 512
 
-
-/* Parse Content Length ********************************************************/
+/* Parse Content Length
+ * ********************************************************/
 /* Takes a Content Length header line, and tries to parse the length value from
 it.  */
 u64 pipeline_parse_content_len (char *text) {
@@ -50,7 +49,7 @@ u64 pipeline_parse_content_len (char *text) {
     }
 
     /* Skip over any trailing whitespace */
-    while (isspace(*end)) {
+    while (xis_space(*end)) {
         ++end;
     }
 
@@ -73,7 +72,18 @@ bool is_header_break_line (char *line) {
     return false;
 }
 
+/* Reads from fd and assigns the message to *out */
 int pipeline_read (FILE *to_read, msg_t *out) {
+
+    if (!to_read) {
+        log_debug("File to read is NULL.");
+        return -1;
+    }
+
+    if (!out) {
+        log_debug("output struct is NULL.");
+        return -1;
+    }
 
     char line[buffer_size];
     char prev_line[buffer_size];
@@ -103,111 +113,56 @@ int pipeline_read (FILE *to_read, msg_t *out) {
 
     out->content = malloc(sizeof(char) * (content_len + 1));
 
+    /* Read content_len num of bytes from FILE and place into out param */
     u64 read_len = fread(out->content, 1, content_len, to_read);
 
     /* Check if we have read the correct size */
     if (read_len != content_len) {
         log_debug("Bytes read (`%llu`) does not match content length (`%llu`)",
                   read_len, content_len);
+        free(out->content);
         return -1;
     }
 
     out->len = content_len;
+    /* Null terminate */
     *((out->content) + content_len) = '\0';
 
     return 0;
 }
 
-
-/* Lookup table entry */
-struct method_entry {
-    const char *str;
-    enum method_type type;
-    unsigned int hash;
-};
-
-int compare_method_entries (const void *a, const void *b) {
-    const struct method_entry *entry_a = (const struct method_entry *)a;
-    const struct method_entry *entry_b = (const struct method_entry *)b;
-
-    if (entry_a->hash < entry_b->hash) {
-        return -1;
-    }
-    if (entry_a->hash > entry_b->hash) {
-        return 1;
-    }
-    return 0;
-}
-
-/* Static lookup table - sorted by hash for binary search */
-static struct method_entry method_table[] = {
-    {"exit", exit_, 0},
-    {"initialise", initialise, 0},
-    {"initialised", initialised, 0},
-    {"shutdown", shutdown, 0},
-    {"textDocument_completion", textDocument_completion, 0},
-    {"textDocument_didOpen", textDocument_didOpen, 0}};
-
-static bool is_initialised = false;
-
-/* Initialize hashes when program starts */
-void init_method_table (void) {
-
-    if (is_initialised) {
-        return;
-    }
-
-    for (size_t i = 0; i < ARRAY_LENGTH(method_table); i++) {
-        method_table[i].hash = hash_string(method_table[i].str);
-    }
-    qsort(method_table, ARRAY_LENGTH(method_table), sizeof(struct method_entry),
-          compare_method_entries);
-    is_initialised = true;
-}
-
-/* Retrieves method */
 int pipeline_determine_method_type (char *method_str) {
 
-    u32 hash = hash_string(method_str);
-
-    /* Binary search in the table */
-    s32 left = 0;
-    s32 right = ARRAY_LENGTH(method_table) - 1;
-
-    while (left <= right) {
-        assert(left < INT_MAX - right);
-        s32 mid = (left + right) / 2;
-        assert(mid < INT_MAX && mid >= 0);
-
-        if (hash < method_table[mid].hash) {
-            right = mid - 1;
-        } else if (hash > method_table[mid].hash) {
-            left = mid + 1;
-        } else {
-            /* Hash matches - verify string */
-            if (strcmp(method_str, method_table[mid].str) == 0) {
-                return method_table[mid].type;
-            }
-            /* Hash collision - search linearly from here */
-            u32 i = mid - 1;
-            while (i >= 0 && method_table[i].hash == hash) {
-                if (strcmp(method_str, method_table[i].str) == 0) {
-                    return method_table[i].type;
-                }
-                --i;
-            }
-            i = mid + 1;
-            while (i < ARRAY_LENGTH(method_table) &&
-                   method_table[i].hash == hash) {
-                if (strcmp(method_str, method_table[i].str) == 0) {
-                    return method_table[i].type;
-                }
-                ++i;
-            }
-            return -1; /* No match found */
-        }
+    /* When method str is null */
+    if (!method_str) {
+        return -1;
     }
-    return -1; /* No match found */
+
+    if (strcmp(method_str, "initialize") == 0) {
+        return initialize;
+    }
+    if (strcmp(method_str, "initialized") == 0) {
+        return initialized;
+    }
+    if (strcmp(method_str, "shutdown") == 0) {
+        return shutdown;
+    }
+    if (strcmp(method_str, "exit") == 0) {
+        return exit_;
+    }
+    if (strcmp(method_str, "textDocument/didOpen") == 0) {
+        return textDocument_didOpen;
+    }
+    if (strcmp(method_str, "textDocument/didChange") == 0) {
+        return textDocument_didChange;
+    }
+    if (strcmp(method_str, "textDocument/didClose") == 0) {
+        return textDocument_didClose;
+    }
+    if (strcmp(method_str, "textDocument/completion") == 0) {
+        return textDocument_completion;
+    }
+    return -1;
 }
 
 /* Takes a message, and then acts on it. */
@@ -237,35 +192,41 @@ int pipeline_dispatcher (msg_t *message) {
     cJSON *method = cJSON_GetObjectItem(content_json, "method");
     if (!method) {
         log_debug("Could not retrieve `method` item from JSON.");
-        goto fail_cleanup;
+        cJSON_Delete(content_json);
+        return -1;
     }
     char *method_str = cJSON_GetStringValue(method);
 
     if (!method_str) {
         log_debug("Method string is not initialised.");
-        goto fail_cleanup;
+        cJSON_Delete(content_json);
+        return -1;
     }
 
-    u32 methodtype = pipeline_determine_method_type(method_str);
-    int result = 0;
+    int methodtype = pipeline_determine_method_type(method_str);
+    if (methodtype < 0) {
+        log_debug("Received unsupported method type: `%s`", method_str);
+        cJSON_Delete(content_json);
+        return -1;
+    }
 
-    log_debug("Message type: `%s`", method_table[methodtype]);
+    int result = -1;
+
+    log_debug("Message type: `%s`", method_str);
 
     switch (methodtype) {
 
         case (exit_):
+            log_warn("exit has not been implemented yet.");
+            result = 0;
             break;
         default:
             log_debug("Cannot handle method type: `%s`", method_str);
-            goto fail_cleanup;
     }
 
-fail_cleanup:
-    {
+    if (content_json) {
         cJSON_Delete(content_json);
-        result = -1;
     }
-
     return result;
 }
 
@@ -276,8 +237,6 @@ int init_pipeline (FILE *to_read) {
     if (!to_read) {
         return -1;
     }
-
-    init_method_table();
 
     msg_t message;
     int result;
@@ -297,9 +256,12 @@ int init_pipeline (FILE *to_read) {
         log_debug("Passing message to dispatcher.");
         result = pipeline_dispatcher(&message);
 
-        free(message.content); /* Free the content after processing */
+        if (message.content) {
+            free(message.content); /* Free the content after processing */
+        }
 
         if (result != 0) {
+            fclose(to_read);
             return result;
         }
     }

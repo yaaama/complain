@@ -61,8 +61,8 @@ $(BUILD_DIR)/%.c.o: %.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 # Test rules
-test: $(TEST_EXEC)
-	./$(TEST_EXEC) --verbose
+test: all $(TEST_EXEC)
+	./$(TEST_EXEC) --verbose -j0
 
 # Link test executable with both test objects and source objects (excluding main)
 $(TEST_EXEC): $(TEST_OBJS) $(OBJS_NO_MAIN)

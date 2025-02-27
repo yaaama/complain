@@ -63,7 +63,11 @@ const char *get_log_type_color (log_type_e log_type) {
  */
 int log_init_file (const char *file_path) {
 
-    log_opts.log_file = fopen(file_path, "a+");
+    if (file_path) {
+        log_opts.log_file = fopen(file_path, "a+");
+    } else {
+        log_opts.log_file = stderr;
+    }
     FILE *local_log_file = log_opts.log_file;
 
     if (local_log_file == NULL) {
@@ -163,11 +167,11 @@ void log_formatted_input (const char *filename, const char *func_name,
     const char *color_code = get_log_type_color(log_type);
 
     // Check if color output is enabled and if output is to a terminal
-    int is_terminal =
-        isatty(local_log_file == stdout || local_log_file == stderr);
+    if (local_log_file == stdout || local_log_file == stderr) {
 
-    if (&log_enable_color_output && is_terminal) {
-        (void)fprintf(local_log_file, "%s", color_code);
+        if (&log_enable_color_output) {
+            (void)fprintf(local_log_file, "%s", color_code);
+        }
     }
 
     /* Adjusted fprintf statement */
@@ -192,7 +196,7 @@ void log_formatted_input (const char *filename, const char *func_name,
     fprintf(local_log_file, "\n");
 
     // Reset color if needed
-    if (&log_enable_color_output && is_terminal) {
+    if (&log_enable_color_output) {
         fprintf(local_log_file, "%s", RESET);
     }
 

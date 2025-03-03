@@ -1,14 +1,14 @@
 # -*- mode: yaml -*-
 
 CompileFlags: # Tweak Parsing
-        Add: [-xc, -Wall, -Wextra, -std=c17]
-        Remove: [-Wunused-parameter] # strip all other warning-related flags
+        Add: [-xc, -Wall, -Wextra, -std=c17, -Wno-unused-function, -Wno-unused-variable, -Wno-unused-parameter]
+        # Remove: [] # strip all other warning-related flags
         Compiler: clang  # Change argv[0] of compile flags to `clang`
 
 Diagnostics:
         ClangTidy:
                 Add: [bugprone*, performance*, readability*, misc*, clang-analyzer*]
-                Remove: [readability-identifier-length, readability-magic-numbers, bugprone-easily-swappable-parameters]
+                Remove: [readability-identifier-length, readability-magic-numbers, bugprone-easily-swappable-parameters, misc-unused*]
 
 # Includes:
         # IgnoreHeader: [criterion*]

@@ -1,0 +1,3 @@
+Content-Length: 280
+
+{"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///home/aayush/projects/complain/src/complain.c","version":1},"contentChanges":[{"range":{"start":{"line":10,"character":25},"end":{"line":10,"character":25}},"rangeLength":0,"text":"\n"}]}}

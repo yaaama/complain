@@ -1,0 +1,3 @@
+Content-Length: 409
+
+{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///home/aayush/projects/complain/src/complain.c","languageId":"c","version":0,"text":"#include \"logging.h\"\n#include \"pipeline.h\"\n#include <stdio.h>\n\n\n/* Main entry point */\nint main (void) {\n\n    log_init_file(\"log.txt\");\n    log_info(\"We've begun!\");\n    init_pipeline(stdin);\n\n    return 0;\n}\n"}}}

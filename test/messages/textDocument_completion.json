@@ -1,0 +1,14 @@
+Content-Length: 272
+
+{
+  "jsonrpc": "2.0",
+  "method": "textDocument/completion",
+  "params": {
+    "textDocument": {
+      "uri": "file:///home/aayush/projects/complain/src/complain.c"
+    },
+    "position": { "line": 8, "character": 4 },
+    "context": { "triggerKind": 1 }
+  },
+  "id": 41
+}

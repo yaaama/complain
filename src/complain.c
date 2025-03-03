@@ -5,9 +5,8 @@
 
 /* Main entry point */
 int main (void) {
-
-    log_info("Program has started.");
-    init_pipeline(stdin);
-
+    log_init_file("log.txt");
+    log_info("We've begun!");
+    init_pipeline(stdin, stdout);
     return 0;
 }

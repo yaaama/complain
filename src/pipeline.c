@@ -12,6 +12,7 @@
 
 #include "common.h"
 #include "logging.h"
+#include "lsp.h"
 
 #define buffer_size 512
 
@@ -166,7 +167,7 @@ int pipeline_determine_method_type (char *method_str) {
 }
 
 /* Takes a message, and then acts on it. */
-int pipeline_dispatcher (msg_t *message) {
+int pipeline_dispatcher (FILE *dest, msg_t *message) {
 
     if (!message) {
         log_debug("Uninitialised message struct, returning.");
@@ -181,60 +182,97 @@ int pipeline_dispatcher (msg_t *message) {
         return -1;
     }
 
-    cJSON *content_json = cJSON_ParseWithLength(message->content, message->len);
 
-    if (!content_json) {
+    log_info("Received message:\n`%s`", message->content);
+    log_info("Length of message: `%d`", message->len);
+    cJSON *json = cJSON_ParseWithLength(message->content, message->len);
+
+    if (!json) {
         log_debug("Failed to create JSON object from message: `%s`",
                   message->content);
         return -1;
     }
 
-    cJSON *method = cJSON_GetObjectItem(content_json, "method");
+    cJSON *method = cJSON_GetObjectItem(json, "method");
     if (!method) {
         log_debug("Could not retrieve `method` item from JSON.");
-        cJSON_Delete(content_json);
+        cJSON_Delete(json);
         return -1;
     }
     char *method_str = cJSON_GetStringValue(method);
 
     if (!method_str) {
         log_debug("Method string is not initialised.");
-        cJSON_Delete(content_json);
+        cJSON_Delete(json);
         return -1;
     }
 
     int methodtype = pipeline_determine_method_type(method_str);
     if (methodtype < 0) {
         log_debug("Received unsupported method type: `%s`", method_str);
-        cJSON_Delete(content_json);
+        cJSON_Delete(json);
         return -1;
     }
 
     int result = -1;
 
     log_debug("Message type: `%s`", method_str);
+    char *response = NULL;
 
     switch (methodtype) {
 
+        case (initialize):
+            response = lsp_initialize(json);
+            break;
+        case (initialized):
+            lsp_initialized(json);
+            break;
+        case (textDocument_didOpen):
+            lsp_textDocument_didOpen(json);
+            break;
+        case (textDocument_didChange):
+            lsp_textDocument_didChange(json);
+            break;
+        case (textDocument_didClose):
+            lsp_textDocument_didClose(json);
+            break;
+        case (textDocument_completion):
+            lsp_textDocument_completion(json);
+            break;
         case (exit_):
+            lsp_exit(json);
             log_warn("exit has not been implemented yet.");
             result = 0;
             break;
+
         default:
             log_debug("Cannot handle method type: `%s`", method_str);
     }
 
-    if (content_json) {
-        cJSON_Delete(content_json);
+    if (response) {
+        pipeline_send(dest, response);
+        free(response);
+    }
+
+    if (json) {
+        cJSON_Delete(json);
     }
     return result;
 }
 
+void pipeline_send(FILE *dest, char *msg) {
+
+    log_debug("Sending:\n`%s`", msg);
+    fprintf(dest, "%s", msg);
+    fflush(dest);
+
+}
+
 /* Initialise reading from FILE */
-int init_pipeline (FILE *to_read) {
+int init_pipeline (FILE *to_read, FILE *to_send) {
 
     /* Ensure we have something to read */
-    if (!to_read) {
+    if (!to_read || !to_send) {
         return -1;
     }
 
@@ -254,7 +292,7 @@ int init_pipeline (FILE *to_read) {
         log_debug("Length: `%llu`", message.len);
 
         log_debug("Passing message to dispatcher.");
-        result = pipeline_dispatcher(&message);
+        result = pipeline_dispatcher(to_send, &message);
 
         if (message.content) {
             free(message.content); /* Free the content after processing */

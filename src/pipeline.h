@@ -27,7 +27,8 @@ enum method_type {
 u64 pipeline_parse_content_len(char *text);
 int pipeline_read(FILE *to_read, msg_t *out);
 int pipeline_determine_method_type(char *method_str);
-int pipeline_dispatcher(msg_t *message);
-int init_pipeline(FILE *to_read);
+int pipeline_dispatcher(FILE *dest, msg_t *message);
+void pipeline_send(FILE *dest, char *msg);
+int init_pipeline(FILE *to_read, FILE *to_send);
 
 #endif  // PIPELINE_H_

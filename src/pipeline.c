@@ -208,7 +208,7 @@ int pipeline_dispatcher (FILE *dest, msg_t *message) {
     }
 
     cJSON *method = cJSON_GetObjectItem(json, "method");
-    if (!method) {
+    if (!cJSON_IsString(method)) {
         log_debug("Could not retrieve `method` item from JSON.");
         cJSON_Delete(json);
         return -1;
@@ -228,7 +228,7 @@ int pipeline_dispatcher (FILE *dest, msg_t *message) {
         return -1;
     }
 
-    int result = -1;
+    int result = 0;
 
     log_debug("Message type: `%s`", method_str);
     char *response = NULL;
@@ -261,6 +261,8 @@ int pipeline_dispatcher (FILE *dest, msg_t *message) {
 
         default:
             log_debug("Cannot handle method type: `%s`", method_str);
+            result = -1;
+            break;
     }
 
     if (response) {
@@ -274,12 +276,10 @@ int pipeline_dispatcher (FILE *dest, msg_t *message) {
     return result;
 }
 
-void pipeline_send(FILE *dest, char *msg) {
-
+void pipeline_send (FILE *dest, char *msg) {
     log_debug("Sending:\n`%s`", msg);
     fprintf(dest, "%s", msg);
     fflush(dest);
-
 }
 
 /* Initialise reading from FILE */

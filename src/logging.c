@@ -64,7 +64,8 @@ const char *get_log_type_color (log_type_e log_type) {
 int log_init_file (const char *file_path) {
 
     if (file_path) {
-        log_opts.log_file = fopen(file_path, "a+");
+        log_opts.log_file = fopen(file_path, "w");
+        log_opts.enable_color_output = 0;
     } else {
         log_opts.log_file = stderr;
     }
@@ -77,7 +78,7 @@ int log_init_file (const char *file_path) {
     char timebuffer[time_buff_size];
     get_current_time(timebuffer, time_buff_size);
 
-    int worked = fprintf(local_log_file, "\n===LOG AT %s===\n\n", timebuffer);
+    int worked = fprintf(local_log_file, "===LOG AT %s===\n\n", timebuffer);
     if (worked < 0) {
         perror("Failed to print the initial header!\n");
     }
@@ -168,15 +169,17 @@ void log_formatted_input (const char *filename, const char *func_name,
 
     // Check if color output is enabled and if output is to a terminal
     if (local_log_file == stdout || local_log_file == stderr) {
-
         if (&log_enable_color_output) {
             (void)fprintf(local_log_file, "%s", color_code);
         }
     }
 
     /* Adjusted fprintf statement */
-    int fpr_good = fprintf(local_log_file, "%s:%zu: [%s] %s %s: ", filename,
-                           line_num, time_buffer, log_type_str, func_name);
+                              /* int fpr_good = fprintf(local_log_file, "%s:%zu: [%s] %s %s: ", filename,
+                               *                        line_num, time_buffer, log_type_str, func_name); */
+
+    int fpr_good = fprintf(local_log_file, "(%s) %s:%zu %s ", log_type_str,
+                           filename, line_num, func_name);
 
     if (!fpr_good) {
         perror("Could not print to file\n");

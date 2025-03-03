@@ -109,7 +109,7 @@ Test (pipeline_tests, test_pipeline_read) {
 
     const char *test_content = "Content-Length: 13\r\n\r\nHello, World!";
     fputs(test_content, temp);
-    rewind(temp);
+    fseek(temp, 0, SEEK_SET);
 
     msg_t message;
     int result = pipeline_read(temp, &message);
@@ -131,17 +131,17 @@ Test (pipeline_tests, test_pipeline_dispatcher) {
     strcpy(message.content, json_str);
     message.len = strlen(json_str);
 
-    int result = pipeline_dispatcher(&message);
+    int result = pipeline_dispatcher(stderr, &message);
     cr_assert_eq(result, 0, "Dispatcher failed for valid exit method");
 }
 
 /* Test error cases */
 Test (pipeline_tests, test_error_cases) {
     /* Test NULL file pointer */
-    cr_assert_eq(init_pipeline(NULL), -1, "Should fail with NULL file pointer");
+    cr_assert_eq(init_pipeline(NULL,NULL), -1, "Should fail with NULL file pointer");
 
     /* Test NULL message */
-    cr_assert_eq(pipeline_dispatcher(NULL), -1,
+    cr_assert_eq(pipeline_dispatcher(stderr, NULL), -1,
                  "Should fail with NULL message");
 
     /* Test pipeline_read with NULL parameters */

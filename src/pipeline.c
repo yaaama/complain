@@ -64,7 +64,12 @@ u64 pipeline_parse_content_len (char *text) {
 }
 
 /* Searches for the break \r\n */
-bool is_header_break_line (char *line) {
+static inline bool is_header_break_line (char *line) {
+    if (!line) {
+        log_warn("Received NULL ptr");
+        return false;
+    }
+
     const char *header_break = "\r\n";
 
     if (strcmp(header_break, (line)) == 0) {

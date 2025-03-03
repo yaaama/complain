@@ -171,22 +171,31 @@ int pipeline_determine_method_type (char *method_str) {
     return -1;
 }
 
+static inline bool valid_message (msg_t *message) {
+
+    if (!message) {
+        log_debug("Uninitialised message struct.");
+        return false;
+    }
+    if (!message->content) {
+        log_debug("Uninitialised message->content");
+        return false;
+    }
+    if (!message->len) {
+        log_debug("Bad message->length");
+        return false;
+    }
+
+    return true;
+}
+
 /* Takes a message, and then acts on it. */
 int pipeline_dispatcher (FILE *dest, msg_t *message) {
 
-    if (!message) {
-        log_debug("Uninitialised message struct, returning.");
+    if (!valid_message(message)) {
+        log_warn("Bad message received.");
         return -1;
     }
-    if (!message->content) {
-        log_debug("Uninitialised message content, returning.");
-        return -1;
-    }
-    if (!message->len) {
-        log_debug("Bad message length, returning.");
-        return -1;
-    }
-
 
     log_info("Received message:\n`%s`", message->content);
     log_info("Length of message: `%d`", message->len);

@@ -124,16 +124,70 @@ Test (pipeline_tests, test_pipeline_read) {
 }
 
 /* Test dispatcher */
-Test (pipeline_tests, test_pipeline_dispatcher) {
-    msg_t message;
+Test (pipeline_tests, test_pipeline_dispatcher_exit) {
     const char *json_str = "{\"method\":\"exit\", \"id\":1}";
-
-    strcpy(message.content, json_str);
+    msg_t message = {0};
     message.len = strlen(json_str);
+    message.content = calloc(sizeof(char), message.len + 1);
+    strcpy(message.content, json_str);
+    message.content[message.len] = '\0';
 
-    int result = pipeline_dispatcher(stderr, &message);
-    cr_assert_eq(result, 0, "Dispatcher failed for valid exit method");
+    int result = pipeline_dispatcher(stderr, &message, true);
+    cr_assert_eq(result, 999, "Dispatcher failed for exit with a shutdown");
+
+    result = pipeline_dispatcher(stderr, &message, false);
+    cr_assert_eq(result, 1000, "Dispatcher failed for early exit method");
+
 }
+
+Test (pipeline_tests, test_pipeline_dispatcher_shutdown) {
+    msg_t message;
+    char *sdn_str = "{\"method\":\"shutdown\", \"id\":1}";
+    char *exit_str = "{\"method\":\"exit\", \"id\":1}";
+    char *any_str = "{\"method\":\"initialize\", \"id\":1}";
+    char *curr_str = NULL;
+
+    /* Shutdown method */
+     curr_str = sdn_str;
+
+    message.len = strlen(curr_str);
+    message.content = calloc(sizeof(char), message.len + 1);
+    strcpy(message.content, curr_str);
+    message.content[message.len] = '\0';
+    int result = pipeline_dispatcher(stderr, &message, false);
+    cr_assert_eq(result, 998, "Dispatcher failed for shutdown method.");
+
+
+    result = pipeline_dispatcher(stderr, &message, true);
+    cr_assert_eq(result, 998, "Dispatcher failed for repeated shutdown method.");
+
+    /* Exit Method */
+    free(message.content);
+    curr_str = exit_str;
+
+    message.len = strlen(curr_str);
+    message.content = calloc(sizeof(char), message.len + 1);
+    strcpy(message.content, curr_str);
+    message.content[message.len] = '\0';
+
+    result = pipeline_dispatcher(stderr, &message, true);
+    cr_assert_eq(result, 999, "Dispatcher failed to handle exit method whilst shutting down.");
+
+
+    free(message.content);
+
+    /* Any Method whilst in shutdown */
+    curr_str = any_str;
+
+    message.len = strlen(curr_str);
+    message.content = calloc(sizeof(char), message.len + 1);
+    strcpy(message.content, curr_str);
+    message.content[message.len] = '\0';
+    result = pipeline_dispatcher(stderr, &message, true);
+    cr_assert_eq(result, 998, "Dispatcher failed for irrelevant method whilst shutting down.");
+
+}
+
 
 /* Test error cases */
 Test (pipeline_tests, test_error_cases) {
@@ -141,7 +195,7 @@ Test (pipeline_tests, test_error_cases) {
     cr_assert_eq(init_pipeline(NULL,NULL), -1, "Should fail with NULL file pointer");
 
     /* Test NULL message */
-    cr_assert_eq(pipeline_dispatcher(stderr, NULL), -1,
+    cr_assert_eq(pipeline_dispatcher(stderr, NULL, false), -1,
                  "Should fail with NULL message");
 
     /* Test pipeline_read with NULL parameters */

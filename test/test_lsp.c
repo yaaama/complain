@@ -36,7 +36,7 @@ Test (test_lsp, test_initialize) {
 
     /* initialize->len = 356; */
 
-    pipeline_dispatcher(stdout, initialize);
+    pipeline_dispatcher(stdout, initialize, false);
 
 
 }

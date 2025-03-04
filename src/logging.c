@@ -99,21 +99,17 @@ void log_close_file (void) {
     }
 }
 
-/* No linting because it complains about line_number and log_type being next to
- */
-/* one another */
-/* NOLINTBEGIN(bugprone*) */
 void log_formatted_input (const char *filename, const char *func_name,
                           size_t line_num, log_type_e log_type, char *format,
                           ...) {
-
-    /* NOLINTEND(bugprone*) */
 
     if (log_opts.log_file == NULL) {
         log_opts.log_file = stderr;
     }
 
     FILE *local_log_file = log_opts.log_file;
+
+    fflush(local_log_file);
 
     /* Get current time */
     time_t now = time(NULL);
@@ -179,8 +175,9 @@ void log_formatted_input (const char *filename, const char *func_name,
      *                        line_num, time_buffer, log_type_str, func_name);
      */
 
-    int fpr_good = fprintf(local_log_file, "(%s) %s:%zu %s ", log_type_str,
-                           filename, line_num, func_name);
+    int fpr_good =
+        fprintf(local_log_file, "(%s) %s:%zu [%s] ::: ", log_type_str, filename,
+                line_num, func_name);
 
     if (!fpr_good) {
         perror("Could not print to file\n");

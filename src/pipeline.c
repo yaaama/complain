@@ -22,7 +22,7 @@
 it.  */
 u64 pipeline_parse_content_len (char *text) {
 
-    log_debug("Parsing content length from string `%s`", text);
+    log_debug("Parsing content length from string:\n`%s`", text);
 
     /* Searching for something like this: 'Content-Length: 12345' */
     const char *content_len_prefix = "Content-Length:";
@@ -82,12 +82,12 @@ static inline bool is_header_break_line (char *line) {
 int pipeline_read (FILE *to_read, msg_t *out) {
 
     if (!to_read) {
-        log_debug("File to read is NULL.");
+        log_debug("File to read is NULL.\n");
         return -1;
     }
 
     if (!out) {
-        log_debug("output struct is NULL.");
+        log_debug("message struct is NULL.\n");
         return -1;
     }
 
@@ -126,7 +126,6 @@ int pipeline_read (FILE *to_read, msg_t *out) {
     if (read_len != content_len) {
         log_debug("Bytes read (`%llu`) does not match content length (`%llu`)",
                   read_len, content_len);
-        free(out->content);
         return -1;
     }
 
@@ -190,15 +189,14 @@ static inline bool valid_message (msg_t *message) {
 }
 
 /* Takes a message, and then acts on it. */
-int pipeline_dispatcher (FILE *dest, msg_t *message) {
+int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn) {
 
     if (!valid_message(message)) {
         log_warn("Bad message received.");
         return -1;
     }
 
-    log_info("Received message:\n`%s`", message->content);
-    log_info("Length of message: `%d`", message->len);
+    log_info("Message length: `%d`\nMessage:\n`%s`", message->len, message->content);
     cJSON *json = cJSON_ParseWithLength(message->content, message->len);
 
     if (!json) {
@@ -228,9 +226,34 @@ int pipeline_dispatcher (FILE *dest, msg_t *message) {
         return -1;
     }
 
+    /* If we are shutting down and we do not receive exit method, then ignore
+     * and return */
+    if ((sdn == true) || (methodtype == exit_)) {
+        cJSON_Delete(json);
+        /* Successful exit */
+        if ((sdn == true) && (methodtype == exit_)) {
+            log_info("Preparing to now exit.");
+            return 999;
+        }
+        if ((sdn == true) && (methodtype != exit_)) {
+            log_info(
+                "Ignoring all methods except `exit` whilst in shutdown state.");
+            return 998;
+        }
+        if ((sdn == false) && (methodtype == exit_)) {
+            log_info(
+                "Exiting abruptly due to `exit` method received. Next time "
+                "send shutdown request first.");
+            return 1000;
+        }
+        return -1;
+    }
+
+    message->method = methodtype;
+
     int result = 0;
 
-    log_debug("Message type: `%s`", method_str);
+    log_info("Message type: `%s`", method_str);
     char *response = NULL;
 
     switch (methodtype) {
@@ -253,10 +276,13 @@ int pipeline_dispatcher (FILE *dest, msg_t *message) {
         case (textDocument_completion):
             lsp_textDocument_completion(json);
             break;
+        case (shutdown):
+            lsp_shutdown(json);
+            result = 998;
+            break;
         case (exit_):
             lsp_exit(json);
-            log_warn("exit has not been implemented yet.");
-            result = 0;
+            result = 999;
             break;
 
         default:
@@ -282,6 +308,7 @@ void pipeline_send (FILE *dest, char *msg) {
     fflush(dest);
 }
 
+
 /* Initialise reading from FILE */
 int init_pipeline (FILE *to_read, FILE *to_send) {
 
@@ -291,14 +318,21 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
     }
 
     msg_t message;
-    int result;
+    message.method = UNKNOWN;
+    int io_result;
+    int lsp_result;
+    int await_shutdown = 0;
 
     while (true) {
 
-        result = pipeline_read(to_read, &message);
+        io_result = pipeline_read(to_read, &message);
 
-        if (result != 0) {
-            log_debug("Pipeline reading has failed, returning.");
+        if (io_result < 0) {
+            log_debug("Pipeline IO reading has failed, returning.");
+
+            if (message.content) {
+                free(message.content);
+            }
             return -1;
         }
 
@@ -306,15 +340,53 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
         log_debug("Length: `%llu`", message.len);
 
         log_debug("Passing message to dispatcher.");
-        result = pipeline_dispatcher(to_send, &message);
+        lsp_result = pipeline_dispatcher(to_send, &message, await_shutdown);
 
         if (message.content) {
             free(message.content); /* Free the content after processing */
         }
 
-        if (result != 0) {
-            fclose(to_read);
-            return result;
+        if (lsp_result < 0) {
+            log_err("Dispatcher has encountered a problem, returning.");
+            return lsp_result;
+        }
+
+        switch (lsp_result) {
+            case (998):
+                {
+                    if (await_shutdown) {
+                        break;
+                    }
+                    await_shutdown = 1;
+                    break;
+                }
+
+            case (999):
+                {
+                    /* Handling exit request */
+                    log_info("Exiting successfully.\nBye bye.");
+                    fflush(to_read);
+                    fflush(to_send);
+                    fclose(to_read);
+                    fclose(to_send);
+                    return 0;
+                    break;
+                }
+            case (1000):
+                {
+                    /* Handling exit request */
+                    log_err("Received abrupt exit request.\nBye bye.");
+                    fflush(to_read);
+                    fflush(to_send);
+                    fclose(to_read);
+                    fclose(to_send);
+                    return -1;
+                    break;
+                }
+            default:
+                {
+                    break;
+                }
         }
     }
 }

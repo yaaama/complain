@@ -7,14 +7,10 @@
 #include <string.h>
 
 #include "logging.h"
-#include "pipeline.h"
+#include "common.h"
 
 #define CLIENT_SUPP_COMPLETION (1 << 0)
 
-typedef struct client_props {
-    u32 completion : 1;
-    u32 processID;
-} client_props;
 
 typedef struct LspClient {
     u32 capability;
@@ -144,19 +140,24 @@ char *lsp_initialize (cJSON *message) {
     return final_message;
 }
 
-char *lsp_initialized (cJSON *message) {
-    log_debug("");
+int lsp_initialized (cJSON *message) {
 
+    if (!cJSON_IsObject(message)) {
+        log_err("Message was not a valid object.");
+        return -1;
+    };
+
+    log_debug("Received initialized confirmation from client.");
     return 0;
 }
 
 int lsp_exit (cJSON *message) {
-    log_debug("exit");
+    log_debug("exit requested.");
     return 0;
 }
 
 int lsp_shutdown (cJSON *message) {
-    log_debug("shutdown");
+    log_debug("shutdown requested.");
     return 0;
 }
 

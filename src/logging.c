@@ -175,8 +175,9 @@ void log_formatted_input (const char *filename, const char *func_name,
     }
 
     /* Adjusted fprintf statement */
-                              /* int fpr_good = fprintf(local_log_file, "%s:%zu: [%s] %s %s: ", filename,
-                               *                        line_num, time_buffer, log_type_str, func_name); */
+    /* int fpr_good = fprintf(local_log_file, "%s:%zu: [%s] %s %s: ", filename,
+     *                        line_num, time_buffer, log_type_str, func_name);
+     */
 
     int fpr_good = fprintf(local_log_file, "(%s) %s:%zu %s ", log_type_str,
                            filename, line_num, func_name);

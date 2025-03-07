@@ -302,8 +302,8 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn) {
     return result;
 }
 
-void pipeline_send (FILE *dest, char *msg) {
-    log_debug("Sending:\n`%s`", msg);
+static void pipeline_send (FILE *dest, char *msg) {
+    log_debug("Sending message:\n`%s`", msg);
     fprintf(dest, "%s", msg);
     fflush(dest);
 }

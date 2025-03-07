@@ -129,7 +129,14 @@ char *lsp_initialize (cJSON *message) {
 
     char *str_response = cJSON_PrintUnformatted(response);
     size_t str_response_len = strlen(str_response);
+    /* XXX Padding with extra bytes to be sure header will fit into string */
     char *final_message = malloc(str_response_len + 64);
+
+    /* TODO Clean up better */
+    if (!final_message) {
+        log_err("Out of memory.");
+        exit(1);
+    }
 
     sprintf(final_message, "Content-Length: %zu\r\n\r\n%s", str_response_len,
             str_response);
@@ -147,17 +154,17 @@ int lsp_initialized (cJSON *message) {
         return -1;
     };
 
-    log_debug("Received initialized confirmation from client.");
+    log_debug("Received initialized notification from client.");
     return 0;
 }
 
 int lsp_exit (cJSON *message) {
-    log_debug("exit requested.");
+    log_info("Exit requested.");
     return 0;
 }
 
 int lsp_shutdown (cJSON *message) {
-    log_debug("shutdown requested.");
+    log_info("Shutdown requested.");
     return 0;
 }
 

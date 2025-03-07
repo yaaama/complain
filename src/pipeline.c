@@ -16,6 +16,10 @@
 
 #define buffer_size 512
 
+static void pipeline_send(FILE *dest, char *msg);
+static inline bool is_header_break_line(char *line);
+static inline bool valid_message(msg_t *message);
+
 /* Parse Content Length
  * ********************************************************/
 /* Takes a Content Length header line, and tries to parse the length value from
@@ -196,7 +200,8 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn) {
         return -1;
     }
 
-    log_info("Message length: `%d`\nMessage:\n`%s`", message->len, message->content);
+    log_info("Message length: `%d`\nMessage:\n`%s`", message->len,
+             message->content);
     cJSON *json = cJSON_ParseWithLength(message->content, message->len);
 
     if (!json) {
@@ -309,7 +314,6 @@ static void pipeline_send (FILE *dest, char *msg) {
     fprintf(dest, "%s", msg);
     fflush(dest);
 }
-
 
 /* Initialise reading from FILE */
 int init_pipeline (FILE *to_read, FILE *to_send) {

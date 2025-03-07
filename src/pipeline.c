@@ -192,6 +192,29 @@ static inline bool valid_message (msg_t *message) {
     return true;
 }
 
+static inline int shutdown_retcode(bool sdn, int method_type) {
+
+        /* Successful exit */
+        if ((sdn == true) && (method_type == exit_)) {
+            log_info("Preparing to now gracefully exit.");
+            return 999;
+        }
+        if ((sdn == true) && (method_type != exit_)) {
+            log_info(
+                "Ignoring all methods except `exit` whilst in shutdown state.");
+            return 998;
+        }
+        if ((sdn == false) && (method_type == exit_)) {
+            log_info(
+                "Exiting abruptly due to `exit` method received. Next time "
+                "send shutdown request first.");
+            return 1000;
+        }
+
+    /* Else just return -1 */
+        return -1;
+}
+
 /* Takes a message, and then acts on it. */
 int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn) {
 
@@ -231,27 +254,11 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn) {
         return -1;
     }
 
-    /* If we are shutting down and we do not receive exit method, then ignore
-     * and return */
+    /* Handle when we are shutting down or when we receive exit method */
     if ((sdn == true) || (methodtype == exit_)) {
         cJSON_Delete(json);
-        /* Successful exit */
-        if ((sdn == true) && (methodtype == exit_)) {
-            log_info("Preparing to now exit.");
-            return 999;
-        }
-        if ((sdn == true) && (methodtype != exit_)) {
-            log_info(
-                "Ignoring all methods except `exit` whilst in shutdown state.");
-            return 998;
-        }
-        if ((sdn == false) && (methodtype == exit_)) {
-            log_info(
-                "Exiting abruptly due to `exit` method received. Next time "
-                "send shutdown request first.");
-            return 1000;
-        }
-        return -1;
+        int ret_code = shutdown_retcode(sdn, methodtype);
+        return ret_code;
     }
 
     message->method = methodtype;

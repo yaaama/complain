@@ -6,11 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "logging.h"
 #include "common.h"
+#include "logging.h"
 
 #define CLIENT_SUPP_COMPLETION (1 << 0)
-
 
 typedef struct LspClient {
     u32 capability;
@@ -19,6 +18,28 @@ typedef struct LspClient {
     bool initialized;
 
 } LspClient;
+
+LspClient client = {0};
+
+static cJSON *create_base_response(double id) {
+
+
+    /* response object */
+    cJSON *response = cJSON_CreateObject();
+    cJSON *r_jsonrpc = cJSON_CreateString("2.0");
+    cJSON *r_id = cJSON_CreateNumber(id);
+    cJSON_AddItemToObject(response, "jsonrpc", r_jsonrpc);
+    cJSON_AddItemToObject(response, "id", r_id);
+
+    /* result subobject */
+    cJSON *r_result = cJSON_CreateObject();
+    cJSON *r_result_capabilities = cJSON_CreateObject();
+    cJSON_AddItemToObject(r_result, "capabilities", r_result_capabilities);
+
+    cJSON_AddItemToObject(response, "result", r_result);
+
+    return response;
+}
 
 char *lsp_initialize (cJSON *message) {
     log_debug("");
@@ -69,7 +90,6 @@ char *lsp_initialize (cJSON *message) {
     uri[uri_len] = '\0';
     log_debug("uri length: `%zu`, uri: `%s`", uri_len, uri);
 
-
     /* Process ID */
     size_t process_id = 0;
     cJSON *json_processID = cJSON_GetObjectItem(params, "processId");
@@ -114,21 +134,11 @@ char *lsp_initialize (cJSON *message) {
      */
 
     /* result object */
-    cJSON *r_result = cJSON_CreateObject();
-    cJSON *r_result_capabilities = cJSON_CreateObject();
-    cJSON_AddItemToObject(r_result, "capabilities", r_result_capabilities);
 
-    /* response */
-    cJSON *response = cJSON_CreateObject();
-    cJSON *r_jsonrpc = cJSON_CreateString("2.0");
-    cJSON *r_id = cJSON_CreateNumber(id_val);
-
-    cJSON_AddItemToObject(response, "jsonrpc", r_jsonrpc);
-    cJSON_AddItemToObject(response, "id", r_id);
-    cJSON_AddItemToObject(response, "result", r_result);
-
+    cJSON *response = create_base_response(id_val);
     char *str_response = cJSON_PrintUnformatted(response);
     size_t str_response_len = strlen(str_response);
+
     /* XXX Padding with extra bytes to be sure header will fit into string */
     char *final_message = malloc(str_response_len + 64);
 

@@ -251,12 +251,14 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn) {
 
     message->method = methodtype;
 
+    /* Return value */
     int result = 0;
 
     log_info("Message type: `%s`", method_str);
+    /* Our response, if we have any. */
     char *response = NULL;
 
-    switch (methodtype) {
+    switch (message->method) {
 
         case (initialize):
             response = lsp_initialize(json);

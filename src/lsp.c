@@ -16,6 +16,7 @@ typedef struct LspClient {
     u32 capability;
     char *root_uri;
     u32 processID;
+    bool initialized;
 
 } LspClient;
 
@@ -87,12 +88,11 @@ char *lsp_initialize (cJSON *message) {
         log_warn("Client has no completion capabilities.");
     }
 
-    /* Stores important information */
-    LspClient *client = malloc(sizeof(LspClient));
-
-    client->capability |= CLIENT_SUPP_COMPLETION;
-    client->root_uri = uri;
-    client->processID = process_id;
+    /* Populate our client structure */
+    client.initialized = false; /* We must wait for 'initialized' notification */
+    client.capability |= CLIENT_SUPP_COMPLETION;
+    client.root_uri = uri;
+    client.processID = process_id;
 
     /* For debugging sake */
     char *debug_printing = cJSON_Print(text_document_capabilities);
@@ -155,6 +155,11 @@ int lsp_initialized (cJSON *message) {
     };
 
     log_debug("Received initialized notification from client.");
+    if (client.initialized == true) {
+        log_warn("We are already initialised.");
+        return 0;
+    }
+    client.initialized = true;
     return 0;
 }
 

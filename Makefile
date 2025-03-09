@@ -33,7 +33,9 @@ TEST_EXEC := $(BUILD_DIR)/test_$(TARGET_EXEC)
 # Compiler and linker flags
 CFLAGS := -std=$(C_STANDARD) -Wall -Wextra -pedantic -Isrc
 CPPFLAGS := -MMD -MP
+CRITERIONFLAGS := --verbose -j0
 LDFLAGS := -lcjson -lcriterion
+
 
 # Debug/Release configuration
 ifdef DEBUG
@@ -62,7 +64,7 @@ $(BUILD_DIR)/%.c.o: %.c
 
 # Test rules
 test: all $(TEST_EXEC)
-	./$(TEST_EXEC) --verbose -j0
+	./$(TEST_EXEC) $(CRITERIONFLAGS)
 
 # Link test executable with both test objects and source objects (excluding main)
 $(TEST_EXEC): $(TEST_OBJS) $(OBJS_NO_MAIN)
@@ -76,6 +78,7 @@ clean:
 re: clean all
 
 bear:
+	@echo "Generating compile_database.json"
 	bear -- make -B
 
 .PHONY: all test clean re bear

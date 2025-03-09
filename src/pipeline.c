@@ -174,24 +174,27 @@ int pipeline_determine_method_type (char *method_str) {
     return -1;
 }
 
+/* Checks for validity of a message. */
 static inline bool valid_message (msg_t *message) {
 
     if (!message) {
-        log_debug("Uninitialised message struct.");
+        log_debug("Uninitialised message struct!");
         return false;
     }
     if (!message->content) {
-        log_debug("Uninitialised message->content");
+        log_debug("Uninitialised message content!");
         return false;
     }
     if (!message->len) {
-        log_debug("Bad message->length");
+        log_debug("Uninitialised message length!");
         return false;
     }
 
     return true;
 }
 
+/* Determines whether we are exiting gracefully or abruptly, or still waiting
+for a 'exit' method. */
 static inline int shutdown_retcode(bool sdn, int method_type) {
 
         /* Successful exit */
@@ -249,7 +252,7 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn) {
 
     int methodtype = pipeline_determine_method_type(method_str);
     if (methodtype < 0) {
-        log_debug("Received unsupported method type: `%s`", method_str);
+        log_debug("Received unsupported method type: `%s`, returning.", method_str);
         cJSON_Delete(json);
         return -1;
     }
@@ -327,6 +330,7 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
 
     /* Ensure we have something to read */
     if (!to_read || !to_send) {
+        log_err("Invalid FILE stream.");
         return -1;
     }
 

@@ -26,6 +26,12 @@ typedef struct LspError {
     int code;
 } LspError;
 
+typedef struct Document {
+    char *uri;
+    bool open;
+    u64 version;
+    char *text;
+} Document;
 LspClient client = {0};
 
 /* Checks the message to see if it has:
@@ -259,6 +265,64 @@ int lsp_shutdown (cJSON *message) {
 
 int lsp_textDocument_didOpen (cJSON *message) {
     log_debug("didOpen");
+
+    /* textDocument Object */
+    cJSON *textDocJSON = cJSON_GetObjectItem(message, "textDocument");
+
+    if (!cJSON_IsObject(textDocJSON)) {
+        log_warn("Text document is empty. Returning.");
+        /* TODO Return LSP error message here */
+        return -1;
+    }
+
+    cJSON *uriJSON = cJSON_GetObjectItem(textDocJSON, "uri");
+    cJSON *langIdJSON = cJSON_GetObjectItem(textDocJSON, "languageId");
+    cJSON *verJSON = cJSON_GetObjectItem(textDocJSON, "version");
+    cJSON *textJSON = cJSON_GetObjectItem(textDocJSON, "text");
+
+    if (!cJSON_IsString(uriJSON)) {
+        log_warn("uri is not a valid string.");
+        return -1;
+    }
+    if (!cJSON_IsString(langIdJSON)) {
+        log_warn("languageId is not a valid string.");
+        return -1;
+    }
+
+    if (!cJSON_IsNumber(verJSON)) {
+        log_warn("version is not a valid number.");
+        return -1;
+    }
+
+    if (!cJSON_IsString(textJSON)) {
+        log_warn("text is not a valid string.");
+        return -1;
+    }
+
+    char *uri = cJSON_GetStringValue(uriJSON);
+    char *langId = cJSON_GetStringValue(langIdJSON);
+
+    double ver = cJSON_GetNumberValue(verJSON);
+    assert(ver > 0);
+    char *text = cJSON_GetStringValue(textJSON);
+
+
+    Document doc;
+    doc.open = true;
+    doc.uri = uri;
+    doc.text = text;
+    doc.version = (u64) ver;
+
+    log_info("Successful so far.");
+
+    log_info(
+        "Successful textDocument_didOpen notification handling\n"
+        "langId: `%s`\n"
+        "uri: `%s`\n"
+        "version:`%llu`\n"
+        "text:`%s`\n",
+        langId, doc.uri, doc.version, doc.text);
+
     return 0;
 }
 

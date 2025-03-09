@@ -1,16 +1,17 @@
 
 #include "lsp.h"
 
+#include <assert.h>
 #include <cjson/cJSON.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 #include "common.h"
 #include "logging.h"
 
 #define CLIENT_SUPP_COMPLETION (1 << 0)
+#define CLIENT_SUPP_DOC_SYNC (1 << 1)
 
 typedef struct LspClient {
     u32 capability;
@@ -50,7 +51,7 @@ static bool clients_json_valid (cJSON *message) {
 /* Creates a message with the minimal set of features to adhere to the LSP
  * specification */
 static cJSON *base_response (double id) {
-    assert(("`id` cannot be less than 0.", id > 0));
+    assert(id > 0);
 
     /* response object */
     cJSON *response = cJSON_CreateObject();
@@ -61,7 +62,15 @@ static cJSON *base_response (double id) {
     return response;
 }
 
+cJSON *server_capabilities (void) {
 
+    cJSON *r_result_capabilities = cJSON_CreateObject();
+    cJSON *r_text_sync_capabilities = cJSON_CreateObject();
+
+    /* Tell client we want a full copy of the document per sync */
+    cJSON_AddNumberToObject(r_text_sync_capabilities, "Full", 1);
+    return r_result_capabilities;
+}
 
 char *lsp_initialize (cJSON *message) {
     log_debug("");
@@ -72,7 +81,7 @@ char *lsp_initialize (cJSON *message) {
 
     cJSON *id_json = cJSON_GetObjectItem(message, "id");
     double id = 0;
-    if (! cJSON_IsNumber(id_json)) {
+    if (!cJSON_IsNumber(id_json)) {
         log_err("`id` does not exist in this message.");
         return NULL;
     }
@@ -132,21 +141,42 @@ char *lsp_initialize (cJSON *message) {
         process_id = json_processID->valueint;
     }
 
-    /* Capabilities */
+    /* Client Capabilities
+     capabilities->textDocument->(synchronization,completion)*/
     cJSON *client_capabilities = cJSON_GetObjectItem(params, "capabilities");
     cJSON *text_document_capabilities =
         cJSON_GetObjectItem(client_capabilities, "textDocument");
+
     cJSON *completion_capabilities =
         cJSON_GetObjectItem(text_document_capabilities, "completion");
+    cJSON *sync_capabilities =
+        cJSON_GetObjectItem(text_document_capabilities, "synchronization");
 
-    if (!completion_capabilities) {
-        log_warn("Client has no completion capabilities.");
+
+    bool has_textdoc_capabilities = true;
+    if (!cJSON_IsObject(text_document_capabilities)) {
+        log_warn("Client has no text documentation capabilities.");
+        client.capability = 0;
+        has_textdoc_capabilities = false;
     }
 
-    /* Populate our client structure */
-    client.initialized =
-        false; /* We must wait for 'initialized' notification */
-    client.capability |= CLIENT_SUPP_COMPLETION;
+    if (has_textdoc_capabilities) {
+
+        if (!cJSON_IsObject(sync_capabilities)) {
+            log_warn("Client doesn't have any synchronisation capabilities.");
+        } else {
+            client.capability |= CLIENT_SUPP_DOC_SYNC;
+        }
+
+        if (!cJSON_IsObject(completion_capabilities)) {
+            log_warn("Client has no completion capabilities.");
+        } else {
+            client.capability |= CLIENT_SUPP_COMPLETION;
+        }
+    }
+
+    /* We must wait for 'initialized' notification */
+    client.initialized = false;
     client.root_uri = uri;
     client.processID = process_id;
 
@@ -175,9 +205,9 @@ char *lsp_initialize (cJSON *message) {
 
     /* result subobject */
     cJSON *r_result = cJSON_CreateObject();
-    cJSON *r_result_capabilities = cJSON_CreateObject();
-    cJSON_AddItemToObject(r_result, "capabilities", r_result_capabilities);
 
+    cJSON *r_result_capabilities = server_capabilities();
+    cJSON_AddItemToObject(r_result, "capabilities", r_result_capabilities);
     cJSON_AddItemToObject(response, "result", r_result);
 
     char *str_response = cJSON_PrintUnformatted(response);

@@ -19,10 +19,37 @@ typedef struct LspClient {
 
 } LspClient;
 
+typedef struct LspError {
+    char *msg;
+    int code;
+} LspError;
+
 LspClient client = {0};
 
-static cJSON *create_base_response(double id) {
+/* Checks the message to see if it has:
+ * 1. jsonrpc object
+ * 2. method object
+ */
+static bool clients_json_valid (cJSON *message) {
 
+    bool validity = true;
+
+    if (!cJSON_HasObjectItem(message, "jsonrpc")) {
+        log_err("JSON received does not contain `jsonrpc` object.");
+        validity = false;
+    }
+    if (!cJSON_HasObjectItem(message, "method")) {
+        log_err("JSON received does not contain `method` object.");
+        validity = false;
+    }
+
+    return validity;
+}
+
+/* Creates a message with the minimal set of features to adhere to the LSP
+ * specification */
+static cJSON *base_response (double id) {
+    assert(("`id` cannot be less than 0.", id > 0));
 
     /* response object */
     cJSON *response = cJSON_CreateObject();
@@ -30,34 +57,41 @@ static cJSON *create_base_response(double id) {
     cJSON *r_id = cJSON_CreateNumber(id);
     cJSON_AddItemToObject(response, "jsonrpc", r_jsonrpc);
     cJSON_AddItemToObject(response, "id", r_id);
-
-    /* result subobject */
-    cJSON *r_result = cJSON_CreateObject();
-    cJSON *r_result_capabilities = cJSON_CreateObject();
-    cJSON_AddItemToObject(r_result, "capabilities", r_result_capabilities);
-
-    cJSON_AddItemToObject(response, "result", r_result);
-
     return response;
 }
+
+
 
 char *lsp_initialize (cJSON *message) {
     log_debug("");
 
+    clients_json_valid(message);
+
     /* Read necessary information from the init message */
 
-    cJSON *id = cJSON_GetObjectItem(message, "id");
-    double id_val = 0;
-    if (cJSON_IsNumber(id)) {
-        id_val = cJSON_GetNumberValue(id);
+    cJSON *id_json = cJSON_GetObjectItem(message, "id");
+    double id = 0;
+    if (! cJSON_IsNumber(id_json)) {
+        log_err("`id` does not exist in this message.");
+        return NULL;
     }
+
+    /* Get id value */
+    id = cJSON_GetNumberValue(id_json);
+
     /* Exit if id is invalid */
-    if (id_val < 0) {
+    if (id < 0) {
         log_err("Id received was less than 0.");
         return NULL;
     }
 
+    if (!cJSON_HasObjectItem(message, "params")) {
+        log_err("JSON received does not contain `params` object.");
+        return NULL;
+    }
+
     cJSON *params = cJSON_GetObjectItem(message, "params");
+
     if (!params) {
         log_err("No `params` in clients `initialize` message found.");
         return NULL;
@@ -109,7 +143,8 @@ char *lsp_initialize (cJSON *message) {
     }
 
     /* Populate our client structure */
-    client.initialized = false; /* We must wait for 'initialized' notification */
+    client.initialized =
+        false; /* We must wait for 'initialized' notification */
     client.capability |= CLIENT_SUPP_COMPLETION;
     client.root_uri = uri;
     client.processID = process_id;
@@ -135,7 +170,15 @@ char *lsp_initialize (cJSON *message) {
 
     /* result object */
 
-    cJSON *response = create_base_response(id_val);
+    cJSON *response = base_response(id);
+
+    /* result subobject */
+    cJSON *r_result = cJSON_CreateObject();
+    cJSON *r_result_capabilities = cJSON_CreateObject();
+    cJSON_AddItemToObject(r_result, "capabilities", r_result_capabilities);
+
+    cJSON_AddItemToObject(response, "result", r_result);
+
     char *str_response = cJSON_PrintUnformatted(response);
     size_t str_response_len = strlen(str_response);
 

@@ -28,6 +28,8 @@ u64 pipeline_parse_content_len (char *text) {
 
     log_debug("Parsing content length from string:\n`%s`", text);
 
+    assert(text);
+
     /* Searching for something like this: 'Content-Length: 12345' */
     const char *content_len_prefix = "Content-Length:";
     u32 prefix_len = strlen(content_len_prefix);
@@ -69,6 +71,9 @@ u64 pipeline_parse_content_len (char *text) {
 
 /* Searches for the break \r\n */
 static inline bool is_header_break_line (char *line) {
+
+    assert(line);
+
     if (!line) {
         log_warn("Received NULL ptr");
         return false;
@@ -195,27 +200,27 @@ static inline bool valid_message (msg_t *message) {
 
 /* Determines whether we are exiting gracefully or abruptly, or still waiting
 for a 'exit' method. */
-static inline int shutdown_retcode(bool sdn, int method_type) {
+static inline int shutdown_retcode (bool sdn, int method_type) {
 
-        /* Successful exit */
-        if ((sdn == true) && (method_type == exit_)) {
-            log_info("Preparing to now gracefully exit.");
-            return 999;
-        }
-        if ((sdn == true) && (method_type != exit_)) {
-            log_info(
-                "Ignoring all methods except `exit` whilst in shutdown state.");
-            return 998;
-        }
-        if ((sdn == false) && (method_type == exit_)) {
-            log_info(
-                "Exiting abruptly due to `exit` method received. Next time "
-                "send shutdown request first.");
-            return 1000;
-        }
+    /* Successful exit */
+    if ((sdn == true) && (method_type == exit_)) {
+        log_info("Preparing to now gracefully exit.");
+        return 999;
+    }
+    if ((sdn == true) && (method_type != exit_)) {
+        log_info(
+            "Ignoring all methods except `exit` whilst in shutdown state.");
+        return 998;
+    }
+    if ((sdn == false) && (method_type == exit_)) {
+        log_info(
+            "Exiting abruptly due to `exit` method received. Next time "
+            "send shutdown request first.");
+        return 1000;
+    }
 
     /* Else just return -1 */
-        return -1;
+    return -1;
 }
 
 /* Takes a message, and then acts on it. */
@@ -252,7 +257,8 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn) {
 
     int methodtype = pipeline_determine_method_type(method_str);
     if (methodtype < 0) {
-        log_debug("Received unsupported method type: `%s`, returning.", method_str);
+        log_debug("Received unsupported method type: `%s`, returning.",
+                  method_str);
         cJSON_Delete(json);
         return -1;
     }

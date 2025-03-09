@@ -18,10 +18,10 @@ typedef struct LspClient {
     char *root_uri;
     u32 processID;
     bool initialized;
-
 } LspClient;
 
 typedef struct LspError {
+    bool err;
     char *msg;
     int code;
 } LspError;

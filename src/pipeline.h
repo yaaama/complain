@@ -26,7 +26,7 @@ typedef struct msg_t {
     method_type method;
 } msg_t;
 
-// Function declarations
+/* Function declarations */
 u64 pipeline_parse_content_len(char *text);
 int pipeline_read(FILE *to_read, msg_t *out);
 int pipeline_determine_method_type(char *method_str);

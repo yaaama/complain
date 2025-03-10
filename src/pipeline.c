@@ -242,11 +242,13 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn) {
     }
 
     cJSON *method = cJSON_GetObjectItem(json, "method");
+
     if (!cJSON_IsString(method)) {
         log_debug("Could not retrieve `method` item from JSON.");
         cJSON_Delete(json);
         return -1;
     }
+
     char *method_str = cJSON_GetStringValue(method);
 
     if (!method_str) {

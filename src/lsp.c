@@ -32,13 +32,16 @@ typedef struct Document {
     u64 version;
     char *text;
 } Document;
+
 LspClient client = {0};
 
 /* Checks the message to see if it has:
  * 1. jsonrpc object
  * 2. method object
  */
-static bool clients_json_valid (cJSON *message) {
+bool clients_json_valid (cJSON *message) {
+
+    assert(message);
 
     bool validity = true;
 
@@ -56,7 +59,7 @@ static bool clients_json_valid (cJSON *message) {
 
 /* Creates a message with the minimal set of features to adhere to the LSP
  * specification */
-static cJSON *base_response (double id) {
+static inline cJSON *base_response (double id) {
     assert(id > 0);
 
     /* response object */
@@ -68,7 +71,8 @@ static cJSON *base_response (double id) {
     return response;
 }
 
-cJSON *server_capabilities (void) {
+/* Creates a "server capabilities object"*/
+static inline cJSON *server_capabilities (void) {
 
     cJSON *r_result_capabilities = cJSON_CreateObject();
     cJSON *r_text_sync_capabilities = cJSON_CreateObject();
@@ -342,7 +346,7 @@ int lsp_textDocument_didChange (cJSON *message) {
     cJSON *rangeJSON;
 
     /* TODO We must create a change object */
-    DocChange *change = malloc(sizeof (DocChange));
+    DocChange *change = malloc(sizeof(DocChange));
 
     /* We need a dynamic array here... brb */
     DocChange changes[1];
@@ -372,7 +376,6 @@ int lsp_textDocument_didChange (cJSON *message) {
         }
 
         /* TODO Finish checking for valid JSON values */
-
     }
 
     return 0;

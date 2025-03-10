@@ -14,7 +14,11 @@
 #include "logging.h"
 #include "lsp.h"
 
-#define buffer_size 512
+#ifdef NDEBUG
+#define buffer_size 1024
+#else
+#define buffer_size 64
+#endif
 
 static void pipeline_send(FILE *dest, char *msg);
 static inline bool is_header_break_line(char *line);

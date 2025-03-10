@@ -33,6 +33,19 @@ typedef struct Document {
     char *text;
 } Document;
 
+typedef struct changeRange {
+    size_t line;
+    size_t char_pos;
+} changeRange;
+
+typedef struct DocChange {
+    changeRange start;
+    changeRange end;
+    size_t range_len;
+    char *text;
+    Document *doc;
+} DocChange;
+
 LspClient client = {0};
 
 /* Checks the message to see if it has:
@@ -323,18 +336,6 @@ int lsp_textDocument_didOpen (cJSON *message) {
 
     return 0;
 }
-
-typedef struct changeRange {
-    size_t line;
-    size_t char_pos;
-} changeRange;
-
-typedef struct DocChange {
-    changeRange start;
-    changeRange end;
-    size_t range_len;
-    char *text;
-} DocChange;
 
 int lsp_textDocument_didChange (cJSON *message) {
     log_debug("didChange");

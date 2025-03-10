@@ -380,7 +380,17 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
             return lsp_result;
         }
 
+        /* React to return codes */
         switch (lsp_result) {
+
+            /* Default value for success */
+            case (0):
+                {
+                    break;
+                }
+
+            /* 998 is for when we are in shutdown mode and we receive a message
+               with an irrelevant method  */
             case (998):
                 {
                     if (await_shutdown) {
@@ -390,30 +400,30 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
                     break;
                 }
 
+                /* Handling exit requests... */
+                /* We are on a path to exiting so lets close our streams */
+                fflush(to_read);
+                fflush(to_send);
+                fclose(to_read);
+                fclose(to_send);
             case (999):
                 {
-                    /* Handling exit request */
                     log_info("Exiting successfully.\nBye bye.");
-                    fflush(to_read);
-                    fflush(to_send);
-                    fclose(to_read);
-                    fclose(to_send);
                     return 0;
                     break;
                 }
+                /* Handling forceful exit request */
             case (1000):
                 {
-                    /* Handling exit request */
                     log_err("Received abrupt exit request.\nBye bye.");
-                    fflush(to_read);
-                    fflush(to_send);
-                    fclose(to_read);
-                    fclose(to_send);
                     return -1;
                     break;
                 }
             default:
                 {
+                    log_debug(
+                        "This should not be reachable!!!"
+                        " INVESTIGATE NOW.");
                     break;
                 }
         }

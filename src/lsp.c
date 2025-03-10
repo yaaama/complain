@@ -81,8 +81,6 @@ cJSON *server_capabilities (void) {
 char *lsp_initialize (cJSON *message) {
     log_debug("");
 
-    clients_json_valid(message);
-
     /* Read necessary information from the init message */
 
     cJSON *id_json = cJSON_GetObjectItem(message, "id");
@@ -157,7 +155,6 @@ char *lsp_initialize (cJSON *message) {
         cJSON_GetObjectItem(text_document_capabilities, "completion");
     cJSON *sync_capabilities =
         cJSON_GetObjectItem(text_document_capabilities, "synchronization");
-
 
     bool has_textdoc_capabilities = true;
     if (!cJSON_IsObject(text_document_capabilities)) {
@@ -264,6 +261,7 @@ int lsp_shutdown (cJSON *message) {
 }
 
 int lsp_textDocument_didOpen (cJSON *message) {
+
     log_debug("didOpen");
 
     /* textDocument Object */
@@ -303,17 +301,13 @@ int lsp_textDocument_didOpen (cJSON *message) {
     char *langId = cJSON_GetStringValue(langIdJSON);
 
     double ver = cJSON_GetNumberValue(verJSON);
-    assert(ver > 0);
     char *text = cJSON_GetStringValue(textJSON);
-
 
     Document doc;
     doc.open = true;
     doc.uri = uri;
     doc.text = text;
-    doc.version = (u64) ver;
-
-    log_info("Successful so far.");
+    doc.version = (u64)ver;
 
     log_info(
         "Successful textDocument_didOpen notification handling\n"

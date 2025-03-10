@@ -320,8 +320,61 @@ int lsp_textDocument_didOpen (cJSON *message) {
     return 0;
 }
 
+typedef struct changeRange {
+    size_t line;
+    size_t char_pos;
+} changeRange;
+
+typedef struct DocChange {
+    changeRange start;
+    changeRange end;
+    size_t range_len;
+    char *text;
+} DocChange;
+
 int lsp_textDocument_didChange (cJSON *message) {
     log_debug("didChange");
+
+    cJSON *paramsJSON = cJSON_GetObjectItem(message, "params");
+    cJSON *changesJSON = cJSON_GetObjectItem(message, "contentChanges");
+
+    /* Parse incremental changes */
+    cJSON *rangeJSON;
+
+    /* TODO We must create a change object */
+    DocChange *change = malloc(sizeof (DocChange));
+
+    /* We need a dynamic array here... brb */
+    DocChange changes[1];
+
+    /* Iterate for each item in `contentChanges` */
+    cJSON_ArrayForEach(rangeJSON, changesJSON) {
+
+        cJSON *rangeStartJSON = cJSON_GetObjectItem(rangeJSON, "start");
+        cJSON *startLineJSON = cJSON_GetObjectItem(rangeStartJSON, "line");
+        cJSON *startCharJSON = cJSON_GetObjectItem(rangeStartJSON, "character");
+
+        cJSON *rangeEndJSON = cJSON_GetObjectItem(rangeJSON, "end");
+        cJSON *endLineJSON = cJSON_GetObjectItem(rangeEndJSON, "line");
+        cJSON *endCharJSON = cJSON_GetObjectItem(rangeEndJSON, "character");
+
+        cJSON *rangeLenJSON = cJSON_GetObjectItem(rangeJSON, "rangeLength");
+        cJSON *rangeTextJSON = cJSON_GetObjectItem(rangeJSON, "text");
+
+        if (!cJSON_IsNumber(rangeLenJSON)) {
+            log_warn("Received a bad `rangeLength`.");
+            return -1;
+        }
+
+        if (!cJSON_IsString(rangeTextJSON)) {
+            log_warn("Received invalid `text`.");
+            return -1;
+        }
+
+        /* TODO Finish checking for valid JSON values */
+
+    }
+
     return 0;
 }
 

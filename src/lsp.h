@@ -60,6 +60,4 @@ int lsp_textDocument_didChange(cJSON *message);
 int lsp_textDocument_didClose(cJSON *message);
 int lsp_textDocument_completion(cJSON *message);
 
-
-
 #endif  // LSP_H_

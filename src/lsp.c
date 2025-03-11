@@ -320,14 +320,13 @@ int lsp_textDocument_didOpen (cJSON *message) {
     double ver = cJSON_GetNumberValue(verJSON);
     char *text = cJSON_GetStringValue(textJSON);
 
-    Document doc;
-    doc.open = true;
-    doc.uri = uri;
-    doc.text = text;
-    doc.version = (u64)ver;
+    assert(ver > 0);
+
+    Document doc = {
+        .open = true, .uri = uri, .text = text, .version = (u64)ver};
 
     log_info(
-        "Successful textDocument_didOpen notification handling\n"
+        "Successful textDocument_didOpen parsing. Document info:\n"
         "langId: `%s`\n"
         "uri: `%s`\n"
         "version:`%llu`\n"

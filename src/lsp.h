@@ -5,9 +5,6 @@
 
 #include "common.h"
 
-#define CLIENT_SUPP_COMPLETION (1 << 0)
-#define CLIENT_SUPP_DOC_SYNC (1 << 1)
-
 enum lspErrCode {
     RPC_ParseError = -32700,
     RPC_InvalidRequest = -32600,
@@ -56,25 +53,23 @@ enum lspErrCode {
     RequestCancelled = -32800,
 };
 
+#define CLIENT_SUPP_COMPLETION (1 << 0)
+#define CLIENT_SUPP_DOC_SYNC (1 << 1)
+#define CLIENT_SUPP_INCREMENTAL_SYNC (1 << 2)
+#define CLIENT_SUPP_DOC_FULL_SYNC (1 << 3)
+
 typedef struct LspClient {
     u32 capability;
     char *root_uri;
     u32 processID;
     bool initialized;
+    bool shutdown_requested;
 } LspClient;
 
 typedef struct LspError {
-    bool err;
     char *msg;
     int code;
 } LspError;
-
-typedef struct Document {
-    char *uri;
-    bool open;
-    u64 version;
-    char *text;
-} Document;
 
 typedef struct changeRange {
     size_t line;
@@ -86,22 +81,37 @@ typedef struct DocChange {
     changeRange end;
     size_t range_len;
     char *text;
-    Document *doc;
 } DocChange;
 
+typedef struct Document {
+    char *uri;
+    bool open;
+    u64 version;
+    char *text;
+    DocChange **changes;
+} Document;
+
+typedef struct LspReply {
+    char header[64];
+    char *msg;
+    size_t len;
+} LspReply;
+
 typedef struct LspState {
-    LspClient *client;
+    LspClient client;
     bool has_err;
-    LspError *error;
+    LspError error;
     Document **documents;
     DocChange **changes;
+    LspReply reply;
 } LspState;
 
-char *lsp_initialize(cJSON *message);
-int lsp_initialized(cJSON *message);
-int lsp_exit(cJSON *message);
-int lsp_shutdown(cJSON *message);
-int lsp_textDocument_didOpen(cJSON *message);
+
+int lsp_initialize(LspState *state, cJSON *message);
+int lsp_initialized(LspState *state, cJSON *message);
+int lsp_exit(LspState *state, cJSON *message);
+int lsp_shutdown(LspState *state, cJSON *message);
+int lsp_textDocument_didOpen(LspState *state, cJSON *message);
 int lsp_textDocument_didChange(cJSON *message);
 int lsp_textDocument_didClose(cJSON *message);
 int lsp_textDocument_completion(cJSON *message);

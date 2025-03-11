@@ -10,9 +10,6 @@
 #include "common.h"
 #include "logging.h"
 
-
-LspClient client = {0};
-
 /* Checks the message to see if it has:
  * 1. jsonrpc object
  * 2. method object
@@ -60,44 +57,44 @@ static inline cJSON *server_capabilities (void) {
     return r_result_capabilities;
 }
 
-char *lsp_initialize (cJSON *message) {
+int lsp_initialize (LspState *state, cJSON *message) {
     log_debug("");
 
     /* Read necessary information from the init message */
+    int error_code = 0;
+    double msg_id = -1;
 
     cJSON *id_json = cJSON_GetObjectItem(message, "id");
-    double id = 0;
     if (!cJSON_IsNumber(id_json)) {
         log_err("`id` does not exist in this message.");
-        return NULL;
+        error_code = RPC_InvalidRequest;
+        goto failed;
     }
 
     /* Get id value */
-    id = cJSON_GetNumberValue(id_json);
+    msg_id = cJSON_GetNumberValue(id_json);
 
     /* Exit if id is invalid */
-    if (id < 0) {
+    if (msg_id < 0) {
         log_err("Id received was less than 0.");
-        return NULL;
+        error_code = RPC_InvalidRequest;
+        goto failed;
     }
 
     if (!cJSON_HasObjectItem(message, "params")) {
         log_err("JSON received does not contain `params` object.");
-        return NULL;
+        error_code = RPC_InvalidParams;
+        goto failed;
     }
 
     cJSON *params = cJSON_GetObjectItem(message, "params");
 
-    if (!params) {
-        log_err("No `params` in clients `initialize` message found.");
-        return NULL;
-    }
-
     cJSON *root_uri = cJSON_GetObjectItem(params, "rootUri");
 
-    if (!cJSON_IsString(root_uri)) {
+    if ((!cJSON_IsString(root_uri)) || (root_uri->valuestring == NULL)) {
         log_err("Root URI not received.");
-        return NULL;
+        error_code = RPC_InvalidParams;
+        goto failed;
     }
 
     /* Extract the rootUri into a new string */
@@ -107,14 +104,16 @@ char *lsp_initialize (cJSON *message) {
 
     if (uri_len == 0) {
         log_err("Invalid URI, length is 0.");
-        return NULL;
+        error_code = RPC_InvalidParams;
+        goto failed;
     }
     char *uri = malloc(sizeof(char) * (uri_len + 1));
 
     if (!uri) {
         log_err("Could not allocate mem, exiting.");
-        exit(1);
+        abort();
     }
+
     /* copy over valuestring from json object to newly allocated string */
     memcpy(uri, root_uri->valuestring, uri_len);
 
@@ -124,7 +123,9 @@ char *lsp_initialize (cJSON *message) {
 
     /* Process ID */
     size_t process_id = 0;
+
     cJSON *json_processID = cJSON_GetObjectItem(params, "processId");
+
     if (cJSON_IsNumber(json_processID)) {
         process_id = json_processID->valueint;
     }
@@ -141,9 +142,10 @@ char *lsp_initialize (cJSON *message) {
         cJSON_GetObjectItem(text_document_capabilities, "synchronization");
 
     bool has_textdoc_capabilities = true;
+
     if (!cJSON_IsObject(text_document_capabilities)) {
         log_warn("Client has no text documentation capabilities.");
-        client.capability = 0;
+        state->client.capability = 0;
         has_textdoc_capabilities = false;
     }
 
@@ -152,27 +154,33 @@ char *lsp_initialize (cJSON *message) {
         if (!cJSON_IsObject(sync_capabilities)) {
             log_warn("Client doesn't have any synchronisation capabilities.");
         } else {
-            client.capability |= CLIENT_SUPP_DOC_SYNC;
+            state->client.capability |= CLIENT_SUPP_DOC_SYNC;
         }
 
         if (!cJSON_IsObject(completion_capabilities)) {
             log_warn("Client has no completion capabilities.");
         } else {
-            client.capability |= CLIENT_SUPP_COMPLETION;
+            state->client.capability |= CLIENT_SUPP_COMPLETION;
         }
+        COMPLAIN_TODO(
+            "Retrieve the types of synchronisation the client supports.");
     }
 
     /* We must wait for 'initialized' notification */
-    client.initialized = false;
-    client.root_uri = uri;
-    client.processID = process_id;
+    state->client.shutdown_requested = false;
+    state->client.initialized = false;
+    state->client.root_uri = uri;
+    state->client.processID = process_id;
 
     /* For debugging sake */
+#ifndef NDEBUG
     char *debug_printing = cJSON_Print(text_document_capabilities);
     log_debug(
         "Initialised with values:\nprocess id: %d,\ntextDoc capabilities: %s\n",
         process_id, debug_printing);
+    COMPLAIN_TODO("Remove this debug printing.");
     free(debug_printing);
+#endif  // NDEBUG
     /* end */
 
     /* Prepare our response: */
@@ -188,7 +196,7 @@ char *lsp_initialize (cJSON *message) {
 
     /* result object */
 
-    cJSON *response = base_response(id);
+    cJSON *response = base_response(msg_id);
 
     /* result subobject */
     cJSON *r_result = cJSON_CreateObject();
@@ -200,25 +208,25 @@ char *lsp_initialize (cJSON *message) {
     char *str_response = cJSON_PrintUnformatted(response);
     size_t str_response_len = strlen(str_response);
 
-    /* XXX Padding with extra bytes to be sure header will fit into string */
-    char *final_message = malloc(str_response_len + 64);
+    state->reply.len = str_response_len;
+    state->reply.msg = str_response;
 
-    /* TODO Clean up better */
-    if (!final_message) {
-        log_err("Out of memory.");
-        exit(1);
-    }
+    (void) sprintf(state->reply.header, "Content-Length: %zu\r\n\r\n%s",
+                   str_response_len, str_response);
 
-    sprintf(final_message, "Content-Length: %zu\r\n\r\n%s", str_response_len,
-            str_response);
-
-    free(str_response);
     cJSON_Delete(response);
 
-    return final_message;
+failed:
+    {
+        state->has_err = true;
+        state->error.code = error_code;
+        return -1;
+    }
+
+    return 0;
 }
 
-int lsp_initialized (cJSON *message) {
+int lsp_initialized (LspState *state, cJSON *message) {
 
     if (!cJSON_IsObject(message)) {
         log_err("Message was not a valid object.");
@@ -226,25 +234,34 @@ int lsp_initialized (cJSON *message) {
     };
 
     log_debug("Received initialized notification from client.");
-    if (client.initialized == true) {
+    if (state->client.initialized == true) {
         log_warn("We are already initialised.");
         return 0;
     }
-    client.initialized = true;
+    state->client.initialized = true;
     return 0;
 }
 
-int lsp_exit (cJSON *message) {
+int lsp_exit (LspState *state, cJSON *message) {
+
+    assert(state);
+    if (state->client.shutdown_requested == false) {
+        log_warn("Abrupt shutdown is in process now.");
+        return -1;
+    }
     log_info("Exit requested.");
     return 0;
 }
 
-int lsp_shutdown (cJSON *message) {
+int lsp_shutdown (LspState *state, cJSON *message) {
+
+    assert(state);
+    state->client.shutdown_requested = true;
     log_info("Shutdown requested.");
     return 0;
 }
 
-int lsp_textDocument_didOpen (cJSON *message) {
+int lsp_textDocument_didOpen (LspState *state, cJSON *message) {
 
     log_debug("didOpen");
 
@@ -397,7 +414,7 @@ int lsp_textDocument_didChange (cJSON *message) {
         /* Allocate memory for the text and copy it */
         char *text = rangeTextJSON->valuestring;
         size_t textLen = strlen(text) + 1;
-        changes[i].text = (char *)malloc(textLen);
+        changes[i].text = (char *) malloc(textLen);
 
         /* If we fail to allocate memory */
         if (!changes[i].text) {
@@ -413,7 +430,6 @@ int lsp_textDocument_didChange (cJSON *message) {
         /* Else copy over the text to our object */
         memcpy(changes[i].text, text, textLen);
         ++i;
-
     }
 
     char *uri = uriJSON->valuestring;
@@ -422,13 +438,12 @@ int lsp_textDocument_didChange (cJSON *message) {
     /* Apply our document changes here... */
     /* apply_document_changes(uri, version, changes, changeCount) */
 
-
 failed_changes:
     {
-    /* Clean up allocated memory for the changes we have made so far */
-    for (int j = 0; j < i; j++) {
-        free(changes[j].text);
-    }
+        /* Clean up allocated memory for the changes we have made so far */
+        for (int j = 0; j < i; j++) {
+            free(changes[j].text);
+        }
         free(changes);
         return -1;
     }

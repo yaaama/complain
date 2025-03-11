@@ -228,7 +228,8 @@ static inline int shutdown_retcode (bool sdn, int method_type) {
 }
 
 /* Takes a message, and then acts on it. */
-int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn) {
+int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn,
+                         LspState *state) {
 
     if (!valid_message(message)) {
         log_warn("Invalid message, returning.");
@@ -295,13 +296,13 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn) {
     switch (message->method) {
 
         case (initialize):
-            response = lsp_initialize(json);
+            result = lsp_initialize(state, json);
             break;
         case (initialized):
-            lsp_initialized(json);
+            lsp_initialized(state, json);
             break;
         case (textDocument_didOpen):
-            lsp_textDocument_didOpen(json);
+            lsp_textDocument_didOpen(state, json);
             break;
         case (textDocument_didChange):
             lsp_textDocument_didChange(json);
@@ -313,12 +314,16 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn) {
             lsp_textDocument_completion(json);
             break;
         case (shutdown):
-            lsp_shutdown(json);
-            result = 998;
+            lsp_shutdown(state, json);
             break;
         case (exit_):
-            lsp_exit(json);
-            result = 999;
+            if (lsp_exit(state, json) == -1) {
+                log_warn("Shutting down abruptly.");
+                COMPLAIN_TODO(
+                    "Abrupt shutdowns should be better handled and preferably "
+                    "not in the dispatcher.");
+                exit(-1);
+            }
             break;
 
         default:
@@ -327,9 +332,22 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn) {
             break;
     }
 
-    if (response) {
+    /* TODO Handle without magic return code */
+    if (state->client.shutdown_requested) {
+        log_info("Handling shutdown.");
+        result = 999;
+    }
+
+    if (state->has_err) {
+        /* TODO Handle lsp errors here... */
+        COMPLAIN_TODO("Have not yet implemented lsp error handling yet.");
+    }
+
+    if (result == 0) {
+        response = state->reply.msg;
         pipeline_send(dest, response);
-        free(response);
+        free(state->reply.msg);
+        state->reply.len = 0;
     }
 
     if (json) {
@@ -339,9 +357,16 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn) {
 }
 
 static inline void pipeline_send (FILE *dest, char *msg) {
+
+    /* Sometimes we don't need to send a message */
+    if (!msg) {
+        log_debug("NULL msg.");
+        return;
+    }
+
     log_debug("Sending message:\n`%s`", msg);
-    fprintf(dest, "%s", msg);
-    fflush(dest);
+    (void) fprintf(dest, "%s", msg);
+    (void) fflush(dest);
 }
 
 /* Initialise reading from FILE */
@@ -358,6 +383,8 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
     int io_result;
     int lsp_result;
     int await_shutdown = 0;
+
+    LspState *state = malloc(sizeof(LspState));
 
     while (true) {
 
@@ -376,7 +403,8 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
         log_debug("Length: `%llu`", message.len);
 
         log_debug("Passing message to dispatcher.");
-        lsp_result = pipeline_dispatcher(to_send, &message, await_shutdown);
+        lsp_result =
+            pipeline_dispatcher(to_send, &message, await_shutdown, state);
 
         if (message.content) {
             free(message.content); /* Free the content after processing */
@@ -409,10 +437,10 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
 
                 /* Handling exit requests... */
                 /* We are on a path to exiting so lets close our streams */
-                fflush(to_read);
-                fflush(to_send);
-                fclose(to_read);
-                fclose(to_send);
+                (void) fflush(to_read);
+                (void) fflush(to_send);
+                (void) fclose(to_read);
+                (void) fclose(to_send);
             case (999):
                 {
                     log_info("Exiting successfully.\nBye bye.");

@@ -231,7 +231,7 @@ static inline int shutdown_retcode (bool sdn, int method_type) {
 int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn) {
 
     if (!valid_message(message)) {
-        log_warn("Bad message received.");
+        log_warn("Invalid message, returning.");
         return -1;
     }
 
@@ -239,9 +239,16 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn) {
              message->content);
     cJSON *json = cJSON_ParseWithLength(message->content, message->len);
 
-    if (!json) {
-        log_debug("Failed to create JSON object from message: `%s`",
-                  message->content);
+    /* Check if JSON has been parsed correctly */
+    if (json == NULL) {
+        log_err("Failed to create JSON object from message: `%s`",
+                message->content);
+        const char *err_ptr = cJSON_GetErrorPtr();
+
+        if (!err_ptr) {
+            log_err("Error before: `%s`", err_ptr);
+        }
+        cJSON_Delete(json);
         return -1;
     }
 

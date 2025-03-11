@@ -13,38 +13,6 @@
 #define CLIENT_SUPP_COMPLETION (1 << 0)
 #define CLIENT_SUPP_DOC_SYNC (1 << 1)
 
-typedef struct LspClient {
-    u32 capability;
-    char *root_uri;
-    u32 processID;
-    bool initialized;
-} LspClient;
-
-typedef struct LspError {
-    bool err;
-    char *msg;
-    int code;
-} LspError;
-
-typedef struct Document {
-    char *uri;
-    bool open;
-    u64 version;
-    char *text;
-} Document;
-
-typedef struct changeRange {
-    size_t line;
-    size_t char_pos;
-} changeRange;
-
-typedef struct DocChange {
-    changeRange start;
-    changeRange end;
-    size_t range_len;
-    char *text;
-    Document *doc;
-} DocChange;
 
 LspClient client = {0};
 

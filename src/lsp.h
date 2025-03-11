@@ -3,6 +3,8 @@
 
 #include <cjson/cJSON.h>
 
+#include "common.h"
+
 enum lspErrCode {
     RPC_ParseError = -32700,
     RPC_InvalidRequest = -32600,
@@ -50,6 +52,47 @@ enum lspErrCode {
      */
     RequestCancelled = -32800,
 };
+
+typedef struct LspClient {
+    u32 capability;
+    char *root_uri;
+    u32 processID;
+    bool initialized;
+} LspClient;
+
+typedef struct LspError {
+    bool err;
+    char *msg;
+    int code;
+} LspError;
+
+typedef struct Document {
+    char *uri;
+    bool open;
+    u64 version;
+    char *text;
+} Document;
+
+typedef struct changeRange {
+    size_t line;
+    size_t char_pos;
+} changeRange;
+
+typedef struct DocChange {
+    changeRange start;
+    changeRange end;
+    size_t range_len;
+    char *text;
+    Document *doc;
+} DocChange;
+
+typedef struct LspState {
+    LspClient *client;
+    bool has_err;
+    LspError *error;
+    Document **documents;
+    DocChange **changes;
+} LspState;
 
 char *lsp_initialize(cJSON *message);
 int lsp_initialized(cJSON *message);

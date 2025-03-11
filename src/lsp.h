@@ -5,6 +5,9 @@
 
 #include "common.h"
 
+#define CLIENT_SUPP_COMPLETION (1 << 0)
+#define CLIENT_SUPP_DOC_SYNC (1 << 1)
+
 enum lspErrCode {
     RPC_ParseError = -32700,
     RPC_InvalidRequest = -32600,

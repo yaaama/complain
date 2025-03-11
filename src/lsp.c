@@ -10,8 +10,6 @@
 #include "common.h"
 #include "logging.h"
 
-#define CLIENT_SUPP_COMPLETION (1 << 0)
-#define CLIENT_SUPP_DOC_SYNC (1 << 1)
 
 LspClient client = {0};
 

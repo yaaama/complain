@@ -15,9 +15,9 @@
 #include "lsp.h"
 
 #ifdef NDEBUG
-#define buffer_size 1024
+    #define buffer_size 1024
 #else
-#define buffer_size 64
+    #define buffer_size 64
 #endif
 
 static void pipeline_send(FILE *dest, char *msg);
@@ -428,9 +428,8 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
                 }
             default:
                 {
-                    log_debug(
-                        "This should not be reachable!!!"
-                        " INVESTIGATE NOW.");
+                    COMPLAIN_UNREACHABLE(
+                        "We should never be able to reach this.");
                     break;
                 }
         }

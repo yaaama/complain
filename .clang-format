@@ -8,6 +8,7 @@ AllowShortLoopsOnASingleLine: false
 IndentWidth: 4
 IndentCaseBlocks: true
 IndentCaseLabels: true
+IndentPPDirectives: BeforeHash
 # IndentExternBlockStyle: Indent
 
 SeparateDefinitionBlocks: Always

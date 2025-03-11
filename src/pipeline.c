@@ -30,9 +30,9 @@ static inline bool valid_message(msg_t *message);
 it.  */
 u64 pipeline_parse_content_len (char *text) {
 
-    log_debug("Parsing content length from string:\n`%s`", text);
-
     assert(text);
+
+    log_debug("Parsing content length from string:\n`%s`", text);
 
     /* Searching for something like this: 'Content-Length: 12345' */
     const char *content_len_prefix = "Content-Length:";
@@ -331,7 +331,7 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn) {
     return result;
 }
 
-static void pipeline_send (FILE *dest, char *msg) {
+static inline void pipeline_send (FILE *dest, char *msg) {
     log_debug("Sending message:\n`%s`", msg);
     fprintf(dest, "%s", msg);
     fflush(dest);

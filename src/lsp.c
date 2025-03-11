@@ -308,44 +308,138 @@ int lsp_textDocument_didOpen (cJSON *message) {
 int lsp_textDocument_didChange (cJSON *message) {
     log_debug("didChange");
 
+    /* message.params */
     cJSON *paramsJSON = cJSON_GetObjectItem(message, "params");
-    cJSON *changesJSON = cJSON_GetObjectItem(message, "contentChanges");
+    if (!cJSON_IsObject(paramsJSON)) {
+        log_warn("Invalid params object in didChange message");
+        return -1;
+    }
 
+    /* message.params.textDocument */
+    cJSON *textDocJSON = cJSON_GetObjectItem(paramsJSON, "textDocument");
+    if (!cJSON_IsObject(textDocJSON)) {
+        log_warn("Invalid textDocument object in didChange message");
+        return -1;
+    }
+    /* message.params.textDocument.uri */
+    cJSON *uriJSON = cJSON_GetObjectItem(textDocJSON, "uri");
+    /* message.params.textDocument.version */
+    cJSON *versionJSON = cJSON_GetObjectItem(textDocJSON, "version");
+    if (!cJSON_IsString(uriJSON) || !cJSON_IsNumber(versionJSON)) {
+        log_warn("Invalid uri or version in `didChange` message");
+        return -1;
+    }
+
+    /* message.params.contentChanges[] */
+    cJSON *changesJSON = cJSON_GetObjectItem(paramsJSON, "contentChanges");
+
+    int change_count = cJSON_GetArraySize(changesJSON);
+
+    if (change_count <= 0) {
+        log_debug("No changes to apply.");
+        return 0;
+    }
+
+    /* We must create a change object */
+    DocChange *changes = (DocChange *) malloc(change_count * sizeof(DocChange));
+    if (!changes) {
+        log_err("Failed to allocate memory.");
+        (void) abort;
+    }
+
+    /* Index of change */
+    int i = 0;
     /* Parse incremental changes */
     cJSON *rangeJSON;
-
-    /* TODO We must create a change object */
-    DocChange *change = malloc(sizeof(DocChange));
-
-    /* We need a dynamic array here... brb */
-    DocChange changes[1];
-
     /* Iterate for each item in `contentChanges` */
     cJSON_ArrayForEach(rangeJSON, changesJSON) {
 
+        rangeJSON = cJSON_GetObjectItem(rangeJSON, "range");
+        if (!cJSON_IsObject(rangeJSON)) {
+            log_warn("Missing or invalid range object");
+            goto failed_changes;
+        }
+
         cJSON *rangeStartJSON = cJSON_GetObjectItem(rangeJSON, "start");
+        cJSON *rangeEndJSON = cJSON_GetObjectItem(rangeJSON, "end");
+        if (!cJSON_IsObject(rangeStartJSON) || !cJSON_IsObject(rangeEndJSON)) {
+            log_warn("Invalid `start` / `end` objects in `range`");
+            goto failed_changes;
+        }
+
         cJSON *startLineJSON = cJSON_GetObjectItem(rangeStartJSON, "line");
         cJSON *startCharJSON = cJSON_GetObjectItem(rangeStartJSON, "character");
-
-        cJSON *rangeEndJSON = cJSON_GetObjectItem(rangeJSON, "end");
         cJSON *endLineJSON = cJSON_GetObjectItem(rangeEndJSON, "line");
         cJSON *endCharJSON = cJSON_GetObjectItem(rangeEndJSON, "character");
+        if (!cJSON_IsNumber(startLineJSON) || !cJSON_IsNumber(startCharJSON) ||
+            !cJSON_IsNumber(endLineJSON) || !cJSON_IsNumber(endCharJSON)) {
+            log_warn("Invalid line or character values in range");
+            goto failed_changes;
+        }
 
         cJSON *rangeLenJSON = cJSON_GetObjectItem(rangeJSON, "rangeLength");
         cJSON *rangeTextJSON = cJSON_GetObjectItem(rangeJSON, "text");
 
         if (!cJSON_IsNumber(rangeLenJSON)) {
             log_warn("Received a bad `rangeLength`.");
-            return -1;
+            goto failed_changes;
         }
 
         if (!cJSON_IsString(rangeTextJSON)) {
             log_warn("Received invalid `text`.");
-            return -1;
+            goto failed_changes;
         }
 
-        /* TODO Finish checking for valid JSON values */
+        changes[i].start.line = startLineJSON->valueint;
+        changes[i].start.pos = startLineJSON->valueint;
+        changes[i].end.line = endLineJSON->valueint;
+        changes[i].end.pos = endLineJSON->valueint;
+        changes[i].range_len = rangeLenJSON->valueint;
+
+        /* Allocate memory for the text and copy it */
+        char *text = rangeTextJSON->valuestring;
+        size_t textLen = strlen(text) + 1;
+        changes[i].text = (char *)malloc(textLen);
+
+        /* If we fail to allocate memory */
+        if (!changes[i].text) {
+            log_err("Failed to allocate memory for change text");
+
+            /* Clean up previously allocated text */
+            for (int j = 0; j < i; j++) {
+                free(changes[j].text);
+            }
+            free(changes);
+            return -1;
+        }
+        /* Else copy over the text to our object */
+        memcpy(changes[i].text, text, textLen);
+        ++i;
+
     }
+
+    char *uri = uriJSON->valuestring;
+    int version = versionJSON->valueint;
+
+    /* Apply our document changes here... */
+    /* apply_document_changes(uri, version, changes, changeCount) */
+
+
+failed_changes:
+    {
+    /* Clean up allocated memory for the changes we have made so far */
+    for (int j = 0; j < i; j++) {
+        free(changes[j].text);
+    }
+        free(changes);
+        return -1;
+    }
+
+    /* Clean up allocated memory */
+    for (int j = 0; j < change_count; j++) {
+        free(changes[j].text);
+    }
+    free(changes);
 
     return 0;
 }

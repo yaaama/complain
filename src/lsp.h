@@ -75,7 +75,7 @@ typedef struct Document {
 
 typedef struct changeRange {
     size_t line;
-    size_t char_pos;
+    size_t pos;
 } changeRange;
 
 typedef struct DocChange {

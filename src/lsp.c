@@ -104,15 +104,16 @@ char *lsp_initialize (cJSON *message) {
     }
 
     /* Extract the rootUri into a new string */
-    log_debug("Root URI `%s`", root_uri->valuestring);
 
     size_t uri_len = strlen(root_uri->valuestring);
-    log_debug("URI Length: %d", uri_len);
+    log_debug("Root URI `%s`, URI Length: `d`", root_uri->valuestring);
+
     if (uri_len == 0) {
-        log_err("Something went wrong here.");
-        exit(1);
+        log_err("Invalid URI, length is 0.");
+        return NULL;
     }
     char *uri = malloc(sizeof(char) * (uri_len + 1));
+
     if (!uri) {
         log_err("Could not allocate mem, exiting.");
         exit(1);

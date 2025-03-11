@@ -1,17 +1,28 @@
 ---
 BasedOnStyle: Google
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
 IndentWidth: 4
 IndentCaseBlocks: true
 IndentCaseLabels: true
 # IndentExternBlockStyle: Indent
+
+SeparateDefinitionBlocks: Always
+
 KeepEmptyLines:
   AtStartOfBlock: true
   AtStartOfFile: true
 MaxEmptyLinesToKeep: 1
-SeparateDefinitionBlocks: Always
+SpaceAfterCStyleCast: true
+SpaceAfterLogicalNot: false
 SpaceBeforeAssignmentOperators: true
 # Example of usage:
 SpaceBeforeParens: Custom
 SpaceBeforeParensOptions:
   AfterControlStatements: true
   AfterFunctionDefinitionName: true
+
+RemoveParentheses: MultipleParentheses

@@ -13,7 +13,6 @@
 #define CLIENT_SUPP_COMPLETION (1 << 0)
 #define CLIENT_SUPP_DOC_SYNC (1 << 1)
 
-
 LspClient client = {0};
 
 /* Checks the message to see if it has:
@@ -293,7 +292,7 @@ int lsp_textDocument_didOpen (cJSON *message) {
     assert(ver > 0);
 
     Document doc = {
-        .open = true, .uri = uri, .text = text, .version = (u64)ver};
+        .open = true, .uri = uri, .text = text, .version = (u64) ver};
 
     log_info(
         "Successful textDocument_didOpen parsing. Document info:\n"

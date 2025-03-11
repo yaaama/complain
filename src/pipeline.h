@@ -7,7 +7,6 @@
 
 #include "common.h"
 
-
 typedef enum method_type {
     UNKNOWN,
     initialize,

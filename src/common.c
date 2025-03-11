@@ -33,7 +33,6 @@ void trim_trailing_ws (char *str, u64 len) {
     *(end + 1) = '\0';
 }
 
-
 /* Creates a perfect hash of a string */
 u64 hash_string (const char *str) {
     if (!str) {

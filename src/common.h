@@ -1,7 +1,11 @@
 #ifndef COMMON_H_
 #define COMMON_H_
 
+#include <assert.h>
 #include <stdbool.h>
+// NOLINTBEGIN
+#include <stdio.h>
+// NOLINTEND
 
 typedef unsigned char u8;
 typedef unsigned short u16;

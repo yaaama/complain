@@ -107,7 +107,8 @@ char *lsp_initialize (cJSON *message) {
     log_debug("Root URI `%s`", root_uri->valuestring);
 
     size_t uri_len = strlen(root_uri->valuestring);
-    log_debug("URI Length: %d", uri_len) if (uri_len == 0) {
+    log_debug("URI Length: %d", uri_len);
+    if (uri_len == 0) {
         log_err("Something went wrong here.");
         exit(1);
     }

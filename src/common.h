@@ -30,7 +30,6 @@ typedef double f64;
 #ifdef NDEBUG
     #define COMPLAIN_TODO(message) ((void) 0)
     #define COMPLAIN_UNREACHABLE(message) ((void) 0)
-
 #else
     /* If stdio is not included then lets define it */
     #if !defined(_STDIO_H_) && !defined(_STDIO_H)
@@ -41,12 +40,12 @@ int fprintf(FILE *restrict stream, const char *restrict format, ...);
     /* Define our debugging macros */
     #define COMPLAIN_TODO(message)                                             \
         do {                                                                   \
-            fprintf(stderr, "%s:%d: TODO: %s\n", __FILE__, __LINE__, message); \
+           (void) fprintf(stderr, "%s:%d: TODO: %s\n", __FILE__, __LINE__, message); \
             abort();                                                           \
         } while (0)
     #define COMPLAIN_UNREACHABLE(message)                                   \
         do {                                                                \
-            fprintf(stderr, "%s:%d: UNREACHABLE: %s\n", __FILE__, __LINE__, \
+            (void) fprintf(stderr, "%s:%d: UNREACHABLE: %s\n", __FILE__, __LINE__, \
                     message);                                               \
             abort();                                                        \
         } while (0)

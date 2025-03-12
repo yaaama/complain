@@ -39,8 +39,9 @@ Test (test_lsp, test_initialize) {
 
     strcpy(initialize->content, content);
     initialize->len = strlen(initialize->content);
+    LspState state;
 
-    pipeline_dispatcher(stdout, initialize, false);
+    pipeline_dispatcher(stdout, initialize, &state);
 
     free(initialize->content);
     free(initialize);
@@ -82,7 +83,8 @@ Test (test_lsp, test_doc_DidOpen) {
     strcpy(didOpen->content, content);
     didOpen->len = strlen(didOpen->content);
 
-    pipeline_dispatcher(stdout, didOpen, false);
+    LspState state;
+    pipeline_dispatcher(stdout, didOpen, &state);
 
     free(didOpen->content);
     free(didOpen);

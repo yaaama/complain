@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "../src/pipeline.h"
+#include "lsp.h"
 
 /* Test fixtures */
 /* static void setup (void) {
@@ -132,10 +133,15 @@ Test (pipeline_tests, test_pipeline_dispatcher_exit) {
     strcpy(message.content, json_str);
     message.content[message.len] = '\0';
 
-    int result = pipeline_dispatcher(stderr, &message, true);
+    LspState state;
+    state.client.shutdown_requested = true;
+
+    int result = pipeline_dispatcher(stderr, &message, &state);
     cr_assert_eq(result, 999, "Dispatcher failed for exit with a shutdown");
 
-    result = pipeline_dispatcher(stderr, &message, false);
+    state.client.shutdown_requested = false;
+
+    result = pipeline_dispatcher(stderr, &message, &state);
     cr_assert_eq(result, 1000, "Dispatcher failed for early exit method");
 
 }
@@ -150,15 +156,18 @@ Test (pipeline_tests, test_pipeline_dispatcher_shutdown) {
     /* Shutdown method */
      curr_str = sdn_str;
 
+    LspState state;
+    state.client.shutdown_requested = false;
+
     message.len = strlen(curr_str);
     message.content = calloc(sizeof(char), message.len + 1);
     strcpy(message.content, curr_str);
     message.content[message.len] = '\0';
-    int result = pipeline_dispatcher(stderr, &message, false);
+    int result = pipeline_dispatcher(stderr, &message, &state );
     cr_assert_eq(result, 998, "Dispatcher failed for shutdown method.");
 
 
-    result = pipeline_dispatcher(stderr, &message, true);
+    result = pipeline_dispatcher(stderr, &message, &state);
     cr_assert_eq(result, 998, "Dispatcher failed for repeated shutdown method.");
 
     /* Exit Method */
@@ -170,9 +179,9 @@ Test (pipeline_tests, test_pipeline_dispatcher_shutdown) {
     strcpy(message.content, curr_str);
     message.content[message.len] = '\0';
 
-    result = pipeline_dispatcher(stderr, &message, true);
+    state.client.shutdown_requested = true;
+    result = pipeline_dispatcher(stderr, &message, &state);
     cr_assert_eq(result, 999, "Dispatcher failed to handle exit method whilst shutting down.");
-
 
     free(message.content);
 
@@ -183,7 +192,7 @@ Test (pipeline_tests, test_pipeline_dispatcher_shutdown) {
     message.content = calloc(sizeof(char), message.len + 1);
     strcpy(message.content, curr_str);
     message.content[message.len] = '\0';
-    result = pipeline_dispatcher(stderr, &message, true);
+    result = pipeline_dispatcher(stderr, &message, &state);
     cr_assert_eq(result, 998, "Dispatcher failed for irrelevant method whilst shutting down.");
 
 }
@@ -194,8 +203,10 @@ Test (pipeline_tests, test_error_cases) {
     /* Test NULL file pointer */
     cr_assert_eq(init_pipeline(NULL,NULL), -1, "Should fail with NULL file pointer");
 
+    LspState state;
+
     /* Test NULL message */
-    cr_assert_eq(pipeline_dispatcher(stderr, NULL, false), -1,
+    cr_assert_eq(pipeline_dispatcher(stderr, NULL, &state), -1,
                  "Should fail with NULL message");
 
     /* Test pipeline_read with NULL parameters */

@@ -33,7 +33,9 @@ TEST_EXEC := $(BUILD_DIR)/test_$(TARGET_EXEC)
 # Compiler and linker flags
 CFLAGS := -std=$(C_STANDARD) -Wall -Wextra -pedantic -Isrc
 CPPFLAGS := -MMD -MP
-CRITERIONFLAGS := --verbose -j0
+# -j1 is important for sequential logging...
+CRITERIONFLAGS := -j1 -f
+CRITERION_WANT_VERBOS := --verbose
 LDFLAGS := -lcjson -lcriterion
 
 

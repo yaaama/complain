@@ -228,7 +228,7 @@ static inline int shutdown_retcode (bool sdn, int method_type) {
 }
 
 /* Takes a message, and then acts on it. */
-int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn,
+int pipeline_dispatcher (FILE *dest, msg_t *message,
                          LspState *state) {
 
     if (!valid_message(message)) {
@@ -278,10 +278,12 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn,
     }
 
     /* Handle when we are shutting down or when we receive exit method */
-    if ((sdn == true) || (methodtype == exit_)) {
-        cJSON_Delete(json);
-        int ret_code = shutdown_retcode(sdn, methodtype);
-        return ret_code;
+    if (state->client.shutdown_requested == true) {
+        if (methodtype != exit_) {
+            cJSON_Delete(json);
+            log_info("Ignoring methods whilst waiting for 'exit'");
+            return 998;
+        }
     }
 
     message->method = methodtype;
@@ -314,16 +316,11 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn,
             lsp_textDocument_completion(json);
             break;
         case (shutdown):
-            lsp_shutdown(state, json);
+            result = lsp_shutdown(state, json);
+
             break;
         case (exit_):
-            if (lsp_exit(state, json) == -1) {
-                log_warn("Shutting down abruptly.");
-                COMPLAIN_TODO(
-                    "Abrupt shutdowns should be better handled and preferably "
-                    "not in the dispatcher.");
-                exit(-1);
-            }
+            result = lsp_exit(state, json);
             break;
 
         default:
@@ -332,16 +329,12 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn,
             break;
     }
 
-    /* TODO Handle without magic return code */
-    if (state->client.shutdown_requested) {
-        log_info("Handling shutdown.");
-        result = 999;
-    }
 
     if (state->has_err) {
         /* TODO Handle lsp errors here... */
         COMPLAIN_TODO("Have not yet implemented lsp error handling yet.");
     }
+
 
     if (result == 0) {
         response = state->reply.msg;
@@ -359,8 +352,8 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, bool sdn,
 static inline void pipeline_send (FILE *dest, char *msg) {
 
     /* Sometimes we don't need to send a message */
-    if (!msg) {
-        log_debug("NULL msg.");
+    if (!msg || !dest) {
+        log_debug("NULL msg or invalid destination stream.");
         return;
     }
 
@@ -404,7 +397,7 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
 
         log_debug("Passing message to dispatcher.");
         lsp_result =
-            pipeline_dispatcher(to_send, &message, await_shutdown, state);
+            pipeline_dispatcher(to_send, &message, state);
 
         if (message.content) {
             free(message.content); /* Free the content after processing */

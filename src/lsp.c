@@ -247,18 +247,21 @@ int lsp_exit (LspState *state, cJSON *message) {
     assert(state);
     if (state->client.shutdown_requested == false) {
         log_warn("Abrupt shutdown is in process now.");
-        return -1;
+        return 1000;
     }
     log_info("Exit requested.");
-    return 0;
+    return 999;
 }
 
 int lsp_shutdown (LspState *state, cJSON *message) {
 
     assert(state);
+    if (state->client.shutdown_requested) {
+        return 998;
+    }
     state->client.shutdown_requested = true;
-    log_info("Shutdown requested.");
-    return 0;
+    log_info("shutdown_requested set to TRUE.");
+    return 998;
 }
 
 int lsp_textDocument_didOpen (LspState *state, cJSON *message) {

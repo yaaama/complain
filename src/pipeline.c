@@ -228,8 +228,7 @@ static inline int shutdown_retcode (bool sdn, int method_type) {
 }
 
 /* Takes a message, and then acts on it. */
-int pipeline_dispatcher (FILE *dest, msg_t *message,
-                         LspState *state) {
+int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
 
     if (!valid_message(message)) {
         log_warn("Invalid message, returning.");
@@ -329,12 +328,10 @@ int pipeline_dispatcher (FILE *dest, msg_t *message,
             break;
     }
 
-
     if (state->has_err) {
         /* TODO Handle lsp errors here... */
         COMPLAIN_TODO("Have not yet implemented lsp error handling yet.");
     }
-
 
     if (result == 0) {
         response = state->reply.msg;
@@ -396,8 +393,7 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
         log_debug("Length: `%llu`", message.len);
 
         log_debug("Passing message to dispatcher.");
-        lsp_result =
-            pipeline_dispatcher(to_send, &message, state);
+        lsp_result = pipeline_dispatcher(to_send, &message, state);
 
         if (message.content) {
             free(message.content); /* Free the content after processing */

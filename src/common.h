@@ -38,16 +38,17 @@ int fprintf(FILE *restrict stream, const char *restrict format, ...);
     #endif
 
     /* Define our debugging macros */
-    #define COMPLAIN_TODO(message)                                             \
-        do {                                                                   \
-           (void) fprintf(stderr, "%s:%d: TODO: %s\n", __FILE__, __LINE__, message); \
-            abort();                                                           \
-        } while (0)
-    #define COMPLAIN_UNREACHABLE(message)                                   \
+    #define COMPLAIN_TODO(message)                                          \
         do {                                                                \
-            (void) fprintf(stderr, "%s:%d: UNREACHABLE: %s\n", __FILE__, __LINE__, \
-                    message);                                               \
+            (void) fprintf(stderr, "%s:%d: TODO: %s\n", __FILE__, __LINE__, \
+                           message);                                        \
             abort();                                                        \
+        } while (0)
+    #define COMPLAIN_UNREACHABLE(message)                                \
+        do {                                                             \
+            (void) fprintf(stderr, "%s:%d: UNREACHABLE: %s\n", __FILE__, \
+                           __LINE__, message);                           \
+            abort();                                                     \
         } while (0)
 
 #endif

@@ -106,7 +106,6 @@ typedef struct LspState {
     LspReply reply;
 } LspState;
 
-
 int lsp_initialize(LspState *state, cJSON *message);
 int lsp_initialized(LspState *state, cJSON *message);
 int lsp_exit(LspState *state, cJSON *message);

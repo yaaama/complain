@@ -46,6 +46,75 @@ static inline cJSON *base_response (double id) {
     return response;
 }
 
+/* TODO Finish this. */
+static int detect_sync_capabilities (cJSON *syncCapabilitiesJSON,
+                                     LspClient *client) {
+
+    if (!cJSON_IsObject(syncCapabilitiesJSON)) {
+        log_warn("Client doesn't have any synchronisation capabilities.");
+        return 0;
+    }
+
+    cJSON *synchronizationObj =
+        cJSON_GetObjectItem(syncCapabilitiesJSON, "synchronization");
+
+    cJSON *syncWillSave = cJSON_GetObjectItem(synchronizationObj, "willSave");
+    cJSON *syncDidSave = cJSON_GetObjectItem(synchronizationObj, "didSave");
+    cJSON *syncwillSaveWaitUntil =
+        cJSON_GetObjectItem(synchronizationObj, "willSaveWaitUntil");
+
+    if (cJSON_IsTrue(syncWillSave)) {
+        client->capability |= CLIENT_SUPP_DOC_willSave;
+    }
+    if (cJSON_IsTrue(syncDidSave)) {
+        client->capability |= CLIENT_SUPP_DOC_didSave;
+    }
+    if (cJSON_IsTrue(syncwillSaveWaitUntil)) {
+        client->capability |= CLIENT_SUPP_DOC_willSaveWaitUntil;
+    }
+
+    cJSON *syncChangeKind = cJSON_GetObjectItem(synchronizationObj, "change");
+
+    /* Now lets check for change syncing */
+
+    if (!cJSON_IsNumber(syncChangeKind)) {
+        log_info("TextDocumentSyncKind is not specified.");
+        return 0;
+    }
+
+    client->capability |= CLIENT_SUPP_DOC_SYNC;
+
+    int syncKind = 0;
+    syncKind = syncChangeKind->valueint;
+
+    if (syncKind < 0 || syncKind > 3) {
+        log_info("Unsupported `textDocumentSyncKind` value of `%s`", syncKind);
+        return -1;
+    }
+
+    switch (syncKind) {
+        case 0:
+            log_info("Client supports syncKind: `None`");
+            break;
+        case 1:
+            log_info("Client supports syncKind: `Full`");
+            client->capability |= CLIENT_SUPP_SYNC_FULL;
+            break;
+        case 2:
+            log_info("Client supports syncKind: `Incremental`");
+            client->capability |= CLIENT_SUPP_SYNC_INCREMENTAL;
+        default:
+            /* UNREACHABLE */
+            COMPLAIN_UNREACHABLE(
+                "Should be unreachable due to range checking.");
+            break;
+    }
+
+    client->capability |= syncKind;
+
+    return 0;
+}
+
 /* Creates a "server capabilities object"*/
 static inline cJSON *server_capabilities (void) {
 
@@ -89,6 +158,18 @@ int lsp_initialize (LspState *state, cJSON *message) {
 
     cJSON *params = cJSON_GetObjectItem(message, "params");
 
+    /* Process ID */
+    size_t process_id = 0;
+    cJSON *json_processID = cJSON_GetObjectItem(params, "processId");
+
+    if (cJSON_IsNumber(json_processID) && json_processID->valueint > 0) {
+        process_id = json_processID->valueint;
+    }
+    if (process_id == 0) {
+        log_warn("Process ID is invalid.");
+        goto failed;
+    }
+
     cJSON *root_uri = cJSON_GetObjectItem(params, "rootUri");
 
     if ((!cJSON_IsString(root_uri)) || (root_uri->valuestring == NULL)) {
@@ -121,27 +202,17 @@ int lsp_initialize (LspState *state, cJSON *message) {
     uri[uri_len] = '\0';
     log_debug("uri length: `%zu`, uri: `%s`", uri_len, uri);
 
-    /* Process ID */
-    size_t process_id = 0;
-
-    cJSON *json_processID = cJSON_GetObjectItem(params, "processId");
-
-    if (cJSON_IsNumber(json_processID)) {
-        process_id = json_processID->valueint;
-    }
-
     /* Client Capabilities
-     capabilities->textDocument->(synchronization,completion)*/
+     capabilities.textDocument.(synchronization, completion)*/
     cJSON *client_capabilities = cJSON_GetObjectItem(params, "capabilities");
     cJSON *text_document_capabilities =
         cJSON_GetObjectItem(client_capabilities, "textDocument");
+    bool has_textdoc_capabilities = true;
 
     cJSON *completion_capabilities =
         cJSON_GetObjectItem(text_document_capabilities, "completion");
     cJSON *sync_capabilities =
         cJSON_GetObjectItem(text_document_capabilities, "synchronization");
-
-    bool has_textdoc_capabilities = true;
 
     if (!cJSON_IsObject(text_document_capabilities)) {
         log_warn("Client has no text documentation capabilities.");
@@ -151,19 +222,18 @@ int lsp_initialize (LspState *state, cJSON *message) {
 
     if (has_textdoc_capabilities) {
 
+        /* Detect sync capabilities */
         if (!cJSON_IsObject(sync_capabilities)) {
-            log_warn("Client doesn't have any synchronisation capabilities.");
+            log_warn("No sync capabilities");
         } else {
-            state->client.capability |= CLIENT_SUPP_DOC_SYNC;
+            detect_sync_capabilities(sync_capabilities, &state->client);
         }
 
-        if (!cJSON_IsObject(completion_capabilities)) {
-            log_warn("Client has no completion capabilities.");
-        } else {
+        if (cJSON_IsObject(completion_capabilities)) {
             state->client.capability |= CLIENT_SUPP_COMPLETION;
+        } else {
+            log_warn("Client has no completion capabilities.");
         }
-        COMPLAIN_TODO(
-            "Retrieve the types of synchronisation the client supports.");
     }
 
     /* We must wait for 'initialized' notification */
@@ -176,9 +246,9 @@ int lsp_initialize (LspState *state, cJSON *message) {
 #ifndef NDEBUG
     char *debug_printing = cJSON_Print(text_document_capabilities);
     log_debug(
-        "Initialised with values:\nprocess id: %d,\ntextDoc capabilities: %s\n",
+        "Initialised with values:\nprocess id: %d,\ntextDoc capabilities: "
+        "%s\n",
         process_id, debug_printing);
-    COMPLAIN_TODO("Remove this debug printing.");
     free(debug_printing);
 #endif  // NDEBUG
     /* end */
@@ -201,18 +271,25 @@ int lsp_initialize (LspState *state, cJSON *message) {
     /* result subobject */
     cJSON *r_result = cJSON_CreateObject();
 
-    cJSON *r_result_capabilities = server_capabilities();
+    cJSON *r_result_capabilities = cJSON_CreateObject();
+    cJSON *r_text_sync_capabilities = cJSON_CreateObject();
+
+    /* Tell client we want a full copy of the document per sync */
+    cJSON_AddNumberToObject(r_text_sync_capabilities, "Full", 1);
     cJSON_AddItemToObject(r_result, "capabilities", r_result_capabilities);
     cJSON_AddItemToObject(response, "result", r_result);
 
     char *str_response = cJSON_PrintUnformatted(response);
+    log_debug("Our response: `%s`", str_response);
     size_t str_response_len = strlen(str_response);
 
-    state->reply.len = str_response_len;
-    state->reply.msg = str_response;
+    state->reply.msg_len = str_response_len;
+    state->reply.header = malloc(sizeof(char) * 64);
+    sprintf(state->reply.header, "Content-Length: %zu\r\n\r\n",
+                   str_response_len);
 
-    (void) sprintf(state->reply.header, "Content-Length: %zu\r\n\r\n%s",
-                   str_response_len, str_response);
+    state->reply.msg = malloc(sizeof(char) * str_response_len);
+    sprintf(state->reply.msg, "%s", str_response);
 
     cJSON_Delete(response);
 
@@ -419,7 +496,6 @@ int lsp_textDocument_didChange (cJSON *message) {
         size_t textLen = strlen(text) + 1;
         changes[i].text = (char *) malloc(textLen);
 
-        /* If we fail to allocate memory */
         if (!changes[i].text) {
             log_err("Failed to allocate memory for change text");
 
@@ -430,7 +506,7 @@ int lsp_textDocument_didChange (cJSON *message) {
             free(changes);
             return -1;
         }
-        /* Else copy over the text to our object */
+        /* Copy changes text to our object */
         memcpy(changes[i].text, text, textLen);
         ++i;
     }

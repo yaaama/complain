@@ -55,8 +55,11 @@ enum lspErrCode {
 
 #define CLIENT_SUPP_COMPLETION (1 << 0)
 #define CLIENT_SUPP_DOC_SYNC (1 << 1)
-#define CLIENT_SUPP_INCREMENTAL_SYNC (1 << 2)
-#define CLIENT_SUPP_DOC_FULL_SYNC (1 << 3)
+#define CLIENT_SUPP_SYNC_INCREMENTAL (1 << 2)
+#define CLIENT_SUPP_SYNC_FULL (1 << 3)
+#define CLIENT_SUPP_DOC_willSave (1 << 4)
+#define CLIENT_SUPP_DOC_didSave (1 << 5)
+#define CLIENT_SUPP_DOC_willSaveWaitUntil (1 << 6)
 
 typedef struct LspClient {
     u32 capability;
@@ -92,14 +95,15 @@ typedef struct Document {
 } Document;
 
 typedef struct LspReply {
-    char header[64];
+    char *header;
     char *msg;
-    size_t len;
+    size_t msg_len;
 } LspReply;
 
 typedef struct LspState {
     LspClient client;
     bool has_err;
+    bool has_msg;
     LspError error;
     Document **documents;
     DocChange **changes;

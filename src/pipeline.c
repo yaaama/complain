@@ -20,7 +20,7 @@
     #define buffer_size 64
 #endif
 
-static void pipeline_send(FILE *dest, char *msg);
+static void pipeline_send(FILE *dest, LspState *state);
 static inline bool is_header_break_line(char *line);
 static inline bool valid_message(msg_t *message);
 
@@ -32,7 +32,7 @@ u64 pipeline_parse_content_len (char *text) {
 
     assert(text);
 
-    log_debug("Parsing content length from string:\n`%s`", text);
+    log_debug("Parsing header from: `%s`", text);
 
     /* Searching for something like this: 'Content-Length: 12345' */
     const char *content_len_prefix = "Content-Length:";
@@ -235,7 +235,7 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
         return -1;
     }
 
-    log_info("Message length: `%d`\nMessage:\n`%s`", message->len,
+    log_info("Message length: `%d`\nMessage:\n`%.12s [...]`", message->len,
              message->content);
     cJSON *json = cJSON_ParseWithLength(message->content, message->len);
 
@@ -300,23 +300,22 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
             result = lsp_initialize(state, json);
             break;
         case (initialized):
-            lsp_initialized(state, json);
+            result = lsp_initialized(state, json);
             break;
         case (textDocument_didOpen):
-            lsp_textDocument_didOpen(state, json);
+            result = lsp_textDocument_didOpen(state, json);
             break;
         case (textDocument_didChange):
-            lsp_textDocument_didChange(json);
+            result = lsp_textDocument_didChange(json);
             break;
         case (textDocument_didClose):
-            lsp_textDocument_didClose(json);
+            result = lsp_textDocument_didClose(json);
             break;
         case (textDocument_completion):
-            lsp_textDocument_completion(json);
+            result = lsp_textDocument_completion(json);
             break;
         case (shutdown):
             result = lsp_shutdown(state, json);
-
             break;
         case (exit_):
             result = lsp_exit(state, json);
@@ -330,32 +329,36 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
 
     if (state->has_err) {
         /* TODO Handle lsp errors here... */
-        COMPLAIN_TODO("Have not yet implemented lsp error handling yet.");
+        log_err("We have encountered an error!");
+        /* COMPLAIN_TODO("Have not yet implemented lsp error handling yet."); */
     }
 
-    if (result == 0) {
-        response = state->reply.msg;
-        pipeline_send(dest, response);
+    if (state->has_msg) {
+        pipeline_send(dest, state);
+        state->reply.msg_len = 0;
+        free(state->reply.header);
         free(state->reply.msg);
-        state->reply.len = 0;
     }
 
-    if (json) {
+    if (!cJSON_IsNull(json)) {
         cJSON_Delete(json);
     }
     return result;
 }
 
-static inline void pipeline_send (FILE *dest, char *msg) {
+static inline void pipeline_send (FILE *dest, LspState *state) {
+    log_debug("Sending message:");
 
     /* Sometimes we don't need to send a message */
-    if (!msg || !dest) {
-        log_debug("NULL msg or invalid destination stream.");
+    if (!state) {
+        log_debug("Invalid state object given.");
         return;
     }
 
-    log_debug("Sending message:\n`%s`", msg);
-    (void) fprintf(dest, "%s", msg);
+
+    log_debug("`%s%s`", state->reply.header,
+              state->reply.msg);
+    (void) fprintf(dest, "%s%s", state->reply.header, state->reply.msg);
     (void) fflush(dest);
 }
 
@@ -374,7 +377,10 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
     int lsp_result;
     int await_shutdown = 0;
 
-    LspState *state = malloc(sizeof(LspState));
+    LspState *state = calloc(sizeof(LspState), 1);
+    state->client.shutdown_requested=false;
+    state->client.initialized = false;
+    state->has_err = false;
 
     while (true) {
 
@@ -389,7 +395,7 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
             return -1;
         }
 
-        log_debug("Content read: `%s`", message.content);
+        log_debug("Content read: `%.12s [...]`", message.content);
         log_debug("Length: `%llu`", message.len);
 
         log_debug("Passing message to dispatcher.");

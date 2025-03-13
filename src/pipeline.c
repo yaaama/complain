@@ -371,7 +371,7 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
         return -1;
     }
 
-    msg_t message;
+    msg_t message = {0};
     message.method = UNKNOWN;
     int io_result;
     int lsp_result;

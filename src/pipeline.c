@@ -384,8 +384,10 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
 
     while (true) {
 
+        /* We read from standard input */
         io_result = pipeline_read(to_read, &message);
 
+        /* Check for error */
         if (io_result < 0) {
             log_debug("Pipeline IO reading has failed, returning.");
 
@@ -395,14 +397,14 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
             return -1;
         }
 
-        log_debug("Content read: `%.12s [...]`", message.content);
-        log_debug("Length: `%llu`", message.len);
+        log_debug("Content read: `%.24s [...]`\nContent-Length: `%llu`", message.content, message.len);
 
-        log_debug("Passing message to dispatcher.");
         lsp_result = pipeline_dispatcher(to_send, &message, state);
 
+/* Free the content after processing */
         if (message.content) {
-            free(message.content); /* Free the content after processing */
+            free(message.content);
+            message.len = 0;
         }
 
         if (lsp_result < 0) {

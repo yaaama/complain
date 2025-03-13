@@ -16,7 +16,7 @@
  * } */
 
 /* Test parsing content length */
-Test (pipeline_tests, test_content_length_parsing) {
+Test (pipeline_utils, content_length_header) {
     char valid_header[] = "Content-Length: 123\r\n";
     char invalid_header[] = "Invalid-Header: 456\r\n";
     char empty_header[] = "";
@@ -36,7 +36,7 @@ Test (pipeline_tests, test_content_length_parsing) {
 }
 
 /* Test method type determination */
-Test (pipeline_tests, test_method_type_determination) {
+Test (pipeline_utils, determine_message_method) {
 
     char *valid_methods[] = {
         "exit",
@@ -79,7 +79,7 @@ Test (pipeline_tests, test_method_type_determination) {
 }
 
 /* Test string trimming */
-Test (pipeline_tests, test_string_trimming) {
+Test (pipeline_utils, string_trimming) {
     char str1[] = "  hello  ";
     char str2[] = "\t\ntest\r\n";
     char str3[] = "no_spaces";
@@ -103,7 +103,7 @@ Test (pipeline_tests, test_string_trimming) {
 }
 
 /* Test message reading from file */
-Test (pipeline_tests, test_pipeline_read) {
+Test (pipeline_utils, pipeline_read) {
     /* Create a temporary file with test content */
     FILE *temp = tmpfile();
     cr_assert_not_null(temp, "Failed to create temporary file");
@@ -125,7 +125,7 @@ Test (pipeline_tests, test_pipeline_read) {
 }
 
 /* Test dispatcher */
-Test (pipeline_tests, test_pipeline_dispatcher_exit) {
+Test (pipeline_utils, pipeline_dispatcher_exit) {
     const char *json_str = "{\"method\":\"exit\", \"id\":1}";
     msg_t message = {0};
     message.len = strlen(json_str);
@@ -144,9 +144,11 @@ Test (pipeline_tests, test_pipeline_dispatcher_exit) {
     result = pipeline_dispatcher(stderr, &message, &state);
     cr_assert_eq(result, 1000, "Dispatcher failed for early exit method");
 
+    free(message.content);
+
 }
 
-Test (pipeline_tests, test_pipeline_dispatcher_shutdown) {
+Test (pipeline_utils, pipeline_dispatcher_shutdown) {
     msg_t message;
     char *sdn_str = "{\"method\":\"shutdown\", \"id\":1}";
     char *exit_str = "{\"method\":\"exit\", \"id\":1}";
@@ -195,11 +197,13 @@ Test (pipeline_tests, test_pipeline_dispatcher_shutdown) {
     result = pipeline_dispatcher(stderr, &message, &state);
     cr_assert_eq(result, 998, "Dispatcher failed for irrelevant method whilst shutting down.");
 
+    free(message.content);
+
 }
 
 
 /* Test error cases */
-Test (pipeline_tests, test_error_cases) {
+Test (pipeline_utils, test_error_cases) {
     /* Test NULL file pointer */
     cr_assert_eq(init_pipeline(NULL,NULL), -1, "Should fail with NULL file pointer");
 

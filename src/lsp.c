@@ -276,6 +276,7 @@ int lsp_initialize (LspState *state, cJSON *message) {
 
     /* Tell client we want a full copy of the document per sync */
     cJSON_AddNumberToObject(r_text_sync_capabilities, "Full", 1);
+    cJSON_AddItemToObject(r_result_capabilities, "synchronization",  r_text_sync_capabilities);
     cJSON_AddItemToObject(r_result, "capabilities", r_result_capabilities);
     cJSON_AddItemToObject(response, "result", r_result);
 
@@ -284,14 +285,22 @@ int lsp_initialize (LspState *state, cJSON *message) {
     size_t str_response_len = strlen(str_response);
 
     state->reply.msg_len = str_response_len;
-    state->reply.header = malloc(sizeof(char) * 64);
-    sprintf(state->reply.header, "Content-Length: %zu\r\n\r\n",
+
+    char temp_header[128] = {0};
+    sprintf(temp_header, "Content-Length: %zu\r\n\r\n",
                    str_response_len);
 
-    state->reply.msg = malloc(sizeof(char) * str_response_len);
+    u32 header_len = strlen(temp_header);
+    state->reply.header = malloc(sizeof(char) * header_len + 1);
+    memcpy(state->reply.header, temp_header, header_len + 1);
+
+    state->reply.msg = malloc(sizeof(char) * str_response_len + 1);
     sprintf(state->reply.msg, "%s", str_response);
 
+    state->has_msg = true;
+    free(str_response);
     cJSON_Delete(response);
+
 
 failed:
     {

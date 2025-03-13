@@ -46,6 +46,7 @@ Test (test_lsp, test_initialize) {
 
     free(initialize->content);
     free(initialize);
+    free(state.client.root_uri);
 }
 
 cJSON* create_server_capabilities (void) {
@@ -130,6 +131,7 @@ Test (test_lsp, test_initialize_w_sync) {
 
     free(initialize->content);
     free(initialize);
+    free(state.client.root_uri);
 }
 
 Test (test_lsp, test_doc_DidOpen) {

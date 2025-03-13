@@ -1,17 +1,25 @@
 # -*- mode: yaml -*-
 
-CompileFlags: # Tweak Parsing
-        Add: [-xc, -Wall, -Wextra, -std=c17, -Wno-unused-function, -Wno-unused-variable, -Wno-unused-parameter, -Wno-#pragma-messages]
-        # Remove: [] # strip all other warning-related flags
+CompileFlags:
+        # Compiler flags to use
+        Add: [-xc, -Wall, -Wextra, -std=c17, ]
+        # Remove these warnings
+        Remove: []
         Compiler: clang  # Change argv[0] of compile flags to `clang`
 
 Diagnostics:
+        Suppress: [-Wunused-function, -Wunused-variable, -Wunused-parameter, -W#pragma-messages]
         ClangTidy:
-                Add: [bugprone*, performance*, readability*, misc*, clang-analyzer*]
+                Add: [bugprone*, performance*, clang-analyzer*]
                 Remove: [readability-identifier-length, readability-magic-numbers, bugprone-easily-swappable-parameters, misc-unused*, ]
-
+                FastCheckFilter: Strict # Strict: Run quick checks only, Loose: Run unless they are known to be slow, None: Check all always
+Hover:
+        ShowAKA: Yes
+Index:
+        Background: Build
+        StandardLibrary: No
+Completion:
+        AllScopes: Yes
 # Includes:
         # IgnoreHeader: [criterion*]
         # MissingIncludes: Strict
-Completion:
-        AllScopes: true

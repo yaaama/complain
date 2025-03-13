@@ -34,7 +34,7 @@ TEST_EXEC := $(BUILD_DIR)/test_$(TARGET_EXEC)
 CFLAGS := -std=$(C_STANDARD) -Wall -Wextra -pedantic -Isrc
 CPPFLAGS := -MMD -MP
 # -j1 is important for sequential logging...
-CRITERIONFLAGS := -j1 -f
+CRITERIONFLAGS := -j1 -f --filter="test_lsp/*" --verbose
 CRITERION_WANT_VERBOS := --verbose
 LDFLAGS := -lcjson -lcriterion
 

@@ -6,10 +6,29 @@
 #include "common.h"
 
 enum lspErrCode {
+
+    /**
+      * Invalid JSON was received.
+     */
     RPC_ParseError = -32700,
+
+    /**
+     * Received an invalid request object.
+     */
     RPC_InvalidRequest = -32600,
+    /**
+     * Method is not valid / is unavailable.
+     */
     RPC_MethodNotFound = -32601,
+
+    /**
+     * Invalid method parameter(s).
+     */
     RPC_InvalidParams = -32602,
+
+    /**
+     * Internal JSON-RPC error
+     */
     RPC_InternalError = -32603,
 
     /**
@@ -72,6 +91,7 @@ typedef struct LspClient {
 typedef struct LspError {
     char *msg;
     int code;
+    int msg_id;
 } LspError;
 
 typedef struct changeRange {

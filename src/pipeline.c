@@ -14,6 +14,10 @@
 #include "logging.h"
 #include "lsp.h"
 
+#define COMPLAIN_REQ_AFTER_SDN 998
+#define COMPLAIN_GOOD_EXIT 999
+#define COMPLAIN_EXIT_ABRUPT 1000
+
 #ifdef NDEBUG
     #define buffer_size 1024
 #else
@@ -209,18 +213,18 @@ static inline int shutdown_retcode (bool sdn, int method_type) {
     /* Successful exit */
     if ((sdn == true) && (method_type == exit_)) {
         log_info("Preparing to now gracefully exit.");
-        return 999;
+        return COMPLAIN_GOOD_EXIT;
     }
     if ((sdn == true) && (method_type != exit_)) {
         log_info(
             "Ignoring all methods except `exit` whilst in shutdown state.");
-        return 998;
+        return COMPLAIN_REQ_AFTER_SDN;
     }
     if ((sdn == false) && (method_type == exit_)) {
         log_info(
             "Exiting abruptly due to `exit` method received. Next time "
             "send shutdown request first.");
-        return 1000;
+        return COMPLAIN_EXIT_ABRUPT;
     }
 
     /* Else just return -1 */
@@ -230,59 +234,77 @@ static inline int shutdown_retcode (bool sdn, int method_type) {
 /* Takes a message, and then acts on it. */
 int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
 
+    /* assert(dest && message && state); */
+
+    int return_val = 0;
+
+    cJSON *json = cJSON_CreateObject();
+
     if (!valid_message(message)) {
         log_warn("Invalid message, returning.");
-        return -1;
+        return_val = RPC_ParseError;
+        goto pre_dispatch_error_cleanup;
     }
 
-    log_info("Message length: `%d`\nMessage:\n`%.12s [...]`", message->len,
-             message->content);
-    cJSON *json = cJSON_ParseWithLength(message->content, message->len);
+    char *fresh_str = calloc(sizeof(char), message->len + 1);
+    memcpy(fresh_str, message->content, message->len);
+    fresh_str[message->len] = '\0';
+
+    /* Parse the string into JSON */
+    json = cJSON_Parse(fresh_str);
+    free(fresh_str);
 
     /* Check if JSON has been parsed correctly */
     if (json == NULL) {
         log_err("Failed to create JSON object from message: `%s`",
                 message->content);
+
+        /* Get internal error pointer */
         const char *err_ptr = cJSON_GetErrorPtr();
 
-        if (!err_ptr) {
-            log_err("Error before: `%s`", err_ptr);
+        if (err_ptr == NULL) {
+            log_err("Unknown cJSON error.");
+            return_val = RPC_InternalError;
+            goto pre_dispatch_error_cleanup;
         }
-        cJSON_Delete(json);
-        return -1;
+
+        log_warn("Invalid JSON. Error from: `%s`", err_ptr);
+        return_val = RPC_ParseError;
+        goto pre_dispatch_error_cleanup;
     }
 
     cJSON *method = cJSON_GetObjectItem(json, "method");
 
     if (!cJSON_IsString(method)) {
         log_debug("Could not retrieve `method` item from JSON.");
-        cJSON_Delete(json);
-        return -1;
+        return_val = RPC_MethodNotFound;
+        goto pre_dispatch_error_cleanup;
     }
 
     char *method_str = cJSON_GetStringValue(method);
 
     if (!method_str) {
         log_debug("Method string is not initialised.");
-        cJSON_Delete(json);
-        return -1;
+        return_val = RPC_MethodNotFound;
+        goto pre_dispatch_error_cleanup;
     }
 
     int methodtype = pipeline_determine_method_type(method_str);
     if (methodtype < 0) {
-        log_debug("Received unsupported method type: `%s`, returning.",
-                  method_str);
-        cJSON_Delete(json);
-        return -1;
+        log_debug("Received unsupported method type: `%s`", method_str);
+        return_val = RPC_InvalidRequest;
+        goto pre_dispatch_error_cleanup;
     }
 
     /* Handle when we are shutting down or when we receive exit method */
     if (state->client.shutdown_requested == true) {
         if (methodtype != exit_) {
-            cJSON_Delete(json);
             log_info("Ignoring methods whilst waiting for 'exit'");
-            return 998;
+            return_val = COMPLAIN_REQ_AFTER_SDN;
+            goto pre_dispatch_error_cleanup;
         }
+        cJSON_Delete(json);
+        return COMPLAIN_GOOD_EXIT;
     }
 
     message->method = methodtype;
@@ -320,7 +342,6 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
         case (exit_):
             result = lsp_exit(state, json);
             break;
-
         default:
             log_debug("Cannot handle method type: `%s`", method_str);
             result = -1;
@@ -342,8 +363,20 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
 
     if (!cJSON_IsNull(json)) {
         cJSON_Delete(json);
+        json = NULL;
     }
+
     return result;
+
+pre_dispatch_error_cleanup:
+    {
+        if (json != NULL) {
+            cJSON_Delete(json);
+        }
+        state->has_err = true;
+        state->error.code = return_val;
+        return return_val;
+    }
 }
 
 static inline void pipeline_send (FILE *dest, LspState *state) {
@@ -355,11 +388,115 @@ static inline void pipeline_send (FILE *dest, LspState *state) {
         return;
     }
 
-
-    log_debug("`%s%s`", state->reply.header,
-              state->reply.msg);
+    log_debug("`%s%s`", state->reply.header, state->reply.msg);
     (void) fprintf(dest, "%s%s", state->reply.header, state->reply.msg);
     (void) fflush(dest);
+}
+
+cJSON *create_error_object (int client_msg_id, int err_code, char *message) {
+
+    assert(message);
+
+    /* Build error object */
+    cJSON *errJSON = cJSON_CreateObject();
+    cJSON_AddStringToObject(errJSON, "jsonrpc", "2.0");
+    cJSON_AddNumberToObject(errJSON, "code", err_code);
+
+    if (message) {
+        cJSON_AddStringToObject(errJSON, "message", message);
+    }
+
+    return errJSON;
+}
+
+int handle_lsp_code (LspState *state, int lsp_result) {
+
+    assert(state);
+
+    int msgID = state->error.msg_id;
+    int err_code = state->error.code;
+    char *msg;
+
+    switch (lsp_result) {
+
+        /* TODO Fill these out with the appropiate error handling...
+         Or perhaps move these into the default case and just print out the
+         error message? They are meant to be in JSON FYI. */
+        case (RPC_ParseError):
+            {
+                msg = "This message could not be parsed.";
+                log_warn("Parsing error.");
+                break;
+            }
+
+        case (RPC_InvalidRequest):
+            {
+                msg = "Invalid request made.";
+                log_warn("Invalid request.");
+                break;
+            }
+
+        case (RPC_MethodNotFound):
+            {
+                msg =
+                    "Requested method could not be found or is not available.";
+                log_warn("Method not found.");
+                break;
+            }
+        case (RPC_InvalidParams):
+            {
+                msg = "Parameters received were invalid.";
+                break;
+            }
+        case (RPC_InternalError):
+            {
+                msg = "Internal JSON RPC error.";
+                break;
+            }
+
+        /* 998 is for when we are in shutdown mode and we receive a message
+           with an irrelevant method  */
+        case (998):
+            {
+                msg =
+                    "Server has initialised shutdown, waiting for `exit` "
+                    "method";
+                break;
+            }
+        case (999):
+            {
+                msg = "Server is exiting successfully. Bye bye!";
+                log_info("Exiting successfully");
+                break;
+            }
+            /* Handling forceful exit request */
+        case (1000):
+            {
+                log_err("Received abrupt exit request.\nBye bye.");
+                exit(1);
+                break;
+            }
+        default:
+            {
+                COMPLAIN_UNREACHABLE("We should never be able to reach this.");
+                break;
+            }
+    }
+
+    /* Build error object */
+    cJSON *errJSON = cJSON_CreateObject();
+    cJSON_AddStringToObject(errJSON, "jsonrpc", "2.0");
+    cJSON_AddNumberToObject(errJSON, "code", err_code);
+    cJSON_AddStringToObject(errJSON, "message", msg);
+
+    char *err_response = cJSON_Print(errJSON);
+
+    fprintf(stderr, "%s", err_response);
+
+    cJSON_Delete(errJSON);
+    free(err_response);
+
+    return 0;
 }
 
 /* Initialise reading from FILE */
@@ -378,7 +515,7 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
     int await_shutdown = 0;
 
     LspState *state = calloc(sizeof(LspState), 1);
-    state->client.shutdown_requested=false;
+    state->client.shutdown_requested = false;
     state->client.initialized = false;
     state->has_err = false;
 
@@ -397,11 +534,12 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
             return -1;
         }
 
-        log_debug("Content read: `%.24s [...]`\nContent-Length: `%llu`", message.content, message.len);
+        log_debug("Content read: `%.24s [...]`\nContent-Length: `%llu`",
+                  message.content, message.len);
 
         lsp_result = pipeline_dispatcher(to_send, &message, state);
 
-/* Free the content after processing */
+        /* Free the content after processing */
         if (message.content) {
             free(message.content);
             message.len = 0;
@@ -410,53 +548,6 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
         if (lsp_result < 0) {
             log_err("Dispatcher has encountered a problem, returning.");
             return lsp_result;
-        }
-
-        /* React to return codes */
-        switch (lsp_result) {
-
-            /* Default value for success */
-            case (0):
-                {
-                    break;
-                }
-
-            /* 998 is for when we are in shutdown mode and we receive a message
-               with an irrelevant method  */
-            case (998):
-                {
-                    if (await_shutdown) {
-                        break;
-                    }
-                    await_shutdown = 1;
-                    break;
-                }
-
-                /* Handling exit requests... */
-                /* We are on a path to exiting so lets close our streams */
-                (void) fflush(to_read);
-                (void) fflush(to_send);
-                (void) fclose(to_read);
-                (void) fclose(to_send);
-            case (999):
-                {
-                    log_info("Exiting successfully.\nBye bye.");
-                    return 0;
-                    break;
-                }
-                /* Handling forceful exit request */
-            case (1000):
-                {
-                    log_err("Received abrupt exit request.\nBye bye.");
-                    return -1;
-                    break;
-                }
-            default:
-                {
-                    COMPLAIN_UNREACHABLE(
-                        "We should never be able to reach this.");
-                    break;
-                }
         }
     }
 }

@@ -115,15 +115,28 @@ static int detect_sync_capabilities (cJSON *syncCapabilitiesJSON,
     return 0;
 }
 
-/* Creates a "server capabilities object"*/
+/** Creates a "server capabilities object"
+ *
+  "textDocumentSync": {
+    "change": 2,
+    "openClose": true,
+    "save": true
+    },
+
+ * NOTE: Currently we only support 'textDocumentSync'
+ */
 static inline cJSON *server_capabilities (void) {
 
-    cJSON *r_result_capabilities = cJSON_CreateObject();
-    cJSON *r_text_sync_capabilities = cJSON_CreateObject();
+    cJSON *capabilities = cJSON_CreateObject();
+    cJSON *doc_sync = cJSON_CreateObject();
 
     /* Tell client we want a full copy of the document per sync */
-    cJSON_AddNumberToObject(r_text_sync_capabilities, "Full", 1);
-    return r_result_capabilities;
+    cJSON_AddNumberToObject(doc_sync, "change", 2);
+    cJSON_AddBoolToObject(doc_sync, "openClose", true);
+    cJSON_AddBoolToObject(doc_sync, "didSave", true);
+    cJSON_AddItemToObject(capabilities, "textDocumentSync", doc_sync);
+
+    return capabilities;
 }
 
 int lsp_initialize (LspState *state, cJSON *message) {
@@ -269,16 +282,11 @@ int lsp_initialize (LspState *state, cJSON *message) {
     cJSON *response = base_response(msg_id);
 
     /* result subobject */
-    cJSON *r_result = cJSON_CreateObject();
+    cJSON *result_object = cJSON_CreateObject();
 
-    cJSON *r_result_capabilities = cJSON_CreateObject();
-    cJSON *r_text_sync_capabilities = cJSON_CreateObject();
-
-    /* Tell client we want a full copy of the document per sync */
-    cJSON_AddNumberToObject(r_text_sync_capabilities, "Full", 1);
-    cJSON_AddItemToObject(r_result_capabilities, "synchronization",  r_text_sync_capabilities);
-    cJSON_AddItemToObject(r_result, "capabilities", r_result_capabilities);
-    cJSON_AddItemToObject(response, "result", r_result);
+    cJSON *server_capability = server_capabilities();
+    cJSON_AddItemToObject(result_object, "capabilities", server_capability);
+    cJSON_AddItemToObject(response, "result", result_object);
 
     char *str_response = cJSON_PrintUnformatted(response);
     log_debug("Our response: `%s`", str_response);
@@ -287,8 +295,7 @@ int lsp_initialize (LspState *state, cJSON *message) {
     state->reply.msg_len = str_response_len;
 
     char temp_header[128] = {0};
-    sprintf(temp_header, "Content-Length: %zu\r\n\r\n",
-                   str_response_len);
+    sprintf(temp_header, "Content-Length: %zu\r\n\r\n", str_response_len);
 
     u32 header_len = strlen(temp_header);
     state->reply.header = malloc(sizeof(char) * header_len + 1);
@@ -300,7 +307,6 @@ int lsp_initialize (LspState *state, cJSON *message) {
     state->has_msg = true;
     free(str_response);
     cJSON_Delete(response);
-
 
 failed:
     {

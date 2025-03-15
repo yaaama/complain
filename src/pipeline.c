@@ -238,7 +238,7 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
 
     int return_val = 0;
 
-    cJSON *json = cJSON_CreateObject();
+    cJSON *json = NULL ;
 
     if (!valid_message(message)) {
         log_warn("Invalid message, returning.");

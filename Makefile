@@ -1,5 +1,7 @@
 DEBUG := 1
-# SANITIZER := 0
+SANITIZER := 1
+
+include .env
 
 # Project configuration
 NAME := complain
@@ -12,68 +14,69 @@ SRC_DIRS := src
 BUILD_DIR := build
 TEST_DIR := test
 
-# Find source files
+# Source files
 SRCS := $(shell find $(SRC_DIRS) -name '*.c')
 MAIN_SRC := src/complain.c
-# Filter out the main source file from the sources
 SRCS_NO_MAIN := $(filter-out $(MAIN_SRC),$(SRCS))
 
-# Generate object files list
-OBJS_NO_MAIN := $(SRCS_NO_MAIN:%=$(BUILD_DIR)/%.o)
-MAIN_OBJ := $(BUILD_DIR)/$(MAIN_SRC).o
+# Object files
+OBJS_NO_MAIN := $(SRCS_NO_MAIN:%.c=$(BUILD_DIR)/%.o)
+MAIN_OBJ := $(BUILD_DIR)/$(MAIN_SRC:.c=.o)
 OBJS := $(MAIN_OBJ) $(OBJS_NO_MAIN)
 DEPS := $(OBJS:.o=.d)
 
-
 # Test files
 TEST_SRCS := $(shell find $(TEST_DIR) -name '*.c')
-TEST_OBJS := $(TEST_SRCS:%=$(BUILD_DIR)/%.o)
-TEST_EXEC := $(BUILD_DIR)/test_$(TARGET_EXEC)
+TEST_OBJS := $(TEST_SRCS:%.c=$(BUILD_DIR)/%.o)
+TEST_EXEC := $(BUILD_DIR)/test_$(NAME)
 
-# Compiler and linker flags
+
+# Base compiler and linker flags
 CFLAGS := -std=$(C_STANDARD) -Wall -Wextra -pedantic -Isrc
 CPPFLAGS := -MMD -MP
-# -j1 is important for sequential logging...
-CRITERIONFLAGS := -j1 -f --filter="test_lsp/*" --verbose
-CRITERION_WANT_VERBOS := --verbose
 LDFLAGS := -lcjson -lcriterion
 
-
-# Debug/Release configuration
 ifdef DEBUG
-	CFLAGS += -g3 -O0 -ggdb \
-			  -Wstrict-prototypes -Wold-style-definition -Wshadow -Wvla \
-			  -Wno-unused-parameter -Wno-unused-variable
+	CFLAGS += -g3 -O0 -ggdb -Wstrict-prototypes -Wold-style-definition \
+			  -Wshadow -Wvla -Wno-unused-parameter -Wno-unused-variable
 else
 	CFLAGS += -O2
 endif
 
+# Sanitizer configuration
 ifdef SANITIZER
-	CFLAGS += -fsanitize=address,undefined # Build with sanitisers
-	LDFLAGS += -fsanitize=address,undefined
+	SAN_FLAGS := -fsanitize=address,undefined
+	CFLAGS += $(SAN_FLAGS)
+	LDFLAGS += $(SAN_FLAGS)
 endif
 
+# Criterion options
+# -j1 is important for sequential logging...
+CRITERION_FLAGS := -j1
+CRITERION_VERBOSE := --verbose --filter="test_lsp/*"
 
-# Build rules
-all: $(BUILD_DIR)/$(TARGET_EXEC)
+.PHONY: all test clean re bear
 
-$(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
-	$(CC) $(OBJS) -o $@ $(LDFLAGS)
 
-$(BUILD_DIR)/%.c.o: %.c
+all: $(BUILD_DIR)/$(NAME)
+
+$(BUILD_DIR)/$(NAME): $(OBJS)
+	ASAN_OPTIONS=$(ASAN_FLAGS) $(CC) $^ -o $@ $(LDFLAGS)
+
+# Generic rule for object files
+$(BUILD_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-# Test rules
-test: all $(TEST_EXEC)
-	./$(TEST_EXEC) $(CRITERIONFLAGS)
+# Test targets
+test: $(TEST_EXEC)
+	./$< $(CRITERION_FLAGS)
 
-# Link test executable with both test objects and source objects (excluding main)
 $(TEST_EXEC): $(TEST_OBJS) $(OBJS_NO_MAIN)
 	@mkdir -p $(dir $@)
-	$(CC) $(TEST_OBJS) $(OBJS_NO_MAIN) -o $@ $(LDFLAGS)
+	$(CC) $^ -o $@ $(LDFLAGS)
 
-# Utility rules
+# Utility targets
 clean:
 	rm -rf $(BUILD_DIR)
 
@@ -83,6 +86,5 @@ bear:
 	@echo "Generating compile_database.json"
 	bear -- make -B
 
-.PHONY: all test clean re bear
 
 -include $(DEPS)

@@ -238,7 +238,7 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
 
     int return_val = 0;
 
-    cJSON *json = NULL ;
+    cJSON *json = NULL;
 
     if (!valid_message(message)) {
         log_warn("Invalid message, returning.");
@@ -246,7 +246,12 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
         goto pre_dispatch_error_cleanup;
     }
 
-    char *fresh_str = calloc(sizeof(char), message->len + 1);
+    char *fresh_str = NULL;
+    fresh_str = calloc(sizeof(char), message->len + 1);
+    if (!fresh_str) {
+        log_err("Failed to allocate mem. Exiting.");
+    }
+
     memcpy(fresh_str, message->content, message->len);
     fresh_str[message->len] = '\0';
 
@@ -357,22 +362,18 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
     if (state->has_msg) {
         pipeline_send(dest, state);
         state->reply.msg_len = 0;
+        state->has_msg = false;
         free(state->reply.header);
         free(state->reply.msg);
     }
 
-    if (!cJSON_IsNull(json)) {
-        cJSON_Delete(json);
-        json = NULL;
-    }
+    cJSON_Delete(json);
 
     return result;
 
 pre_dispatch_error_cleanup:
     {
-        if (json != NULL) {
-            cJSON_Delete(json);
-        }
+        cJSON_Delete(json);
         state->has_err = true;
         state->error.code = return_val;
         return return_val;
@@ -388,9 +389,11 @@ static inline void pipeline_send (FILE *dest, LspState *state) {
         return;
     }
 
-    log_debug("`%s%s`", state->reply.header, state->reply.msg);
-    (void) fprintf(dest, "%s%s", state->reply.header, state->reply.msg);
-    (void) fflush(dest);
+    if (state->has_msg) {
+        log_debug("`%s%s`", state->reply.header, state->reply.msg);
+        (void) fprintf(dest, "%s%s", state->reply.header, state->reply.msg);
+        (void) fflush(dest);
+    }
 }
 
 cJSON *create_error_object (int client_msg_id, int err_code, char *message) {
@@ -514,7 +517,12 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
     int lsp_result;
     int await_shutdown = 0;
 
-    LspState *state = calloc(sizeof(LspState), 1);
+    LspState *state = NULL;
+    state = calloc(sizeof(LspState), 1);
+    if (!state) {
+        log_err(COMPLAIN_Err_OutOfMem);
+        exit(1);
+    }
     state->client.shutdown_requested = false;
     state->client.initialized = false;
     state->has_err = false;

@@ -103,6 +103,7 @@ static int detect_sync_capabilities (cJSON *syncCapabilitiesJSON,
         case 2:
             log_info("Client supports syncKind: `Incremental`");
             client->capability |= CLIENT_SUPP_SYNC_INCREMENTAL;
+            break;
         default:
             /* UNREACHABLE */
             COMPLAIN_UNREACHABLE(
@@ -194,7 +195,8 @@ int lsp_initialize (LspState *state, cJSON *message) {
     /* Extract the rootUri into a new string */
 
     size_t uri_len = strlen(root_uri->valuestring);
-    log_debug("Root URI `%s`, URI Length: `d`", root_uri->valuestring);
+    log_debug("Root URI `%s`, URI Length: `%zu`", root_uri->valuestring,
+              uri_len);
 
     if (uri_len == 0) {
         log_err("Invalid URI, length is 0.");
@@ -267,17 +269,6 @@ int lsp_initialize (LspState *state, cJSON *message) {
     /* end */
 
     /* Prepare our response: */
-    /*
-      response {
-      ..result {
-      ....capabilities { }
-      ..},
-      ..jsonrpc,
-      ..id
-      }
-     */
-
-    /* result object */
 
     cJSON *response = base_response(msg_id);
 
@@ -288,7 +279,7 @@ int lsp_initialize (LspState *state, cJSON *message) {
     cJSON_AddItemToObject(result_object, "capabilities", server_capability);
     cJSON_AddItemToObject(response, "result", result_object);
 
-    char *str_response = cJSON_PrintUnformatted(response);
+    char *str_response = cJSON_Print(response);
     log_debug("Our response: `%s`", str_response);
     size_t str_response_len = strlen(str_response);
 
@@ -308,14 +299,14 @@ int lsp_initialize (LspState *state, cJSON *message) {
     free(str_response);
     cJSON_Delete(response);
 
+    return 0;
+
 failed:
     {
         state->has_err = true;
         state->error.code = error_code;
         return -1;
     }
-
-    return 0;
 }
 
 int lsp_initialized (LspState *state, cJSON *message) {
@@ -532,6 +523,14 @@ int lsp_textDocument_didChange (cJSON *message) {
     /* Apply our document changes here... */
     /* apply_document_changes(uri, version, changes, changeCount) */
 
+    /* Clean up allocated memory */
+    for (int j = 0; j < change_count; j++) {
+        free(changes[j].text);
+    }
+    free(changes);
+
+    return 0;
+
 failed_changes:
     {
         /* Clean up allocated memory for the changes we have made so far */
@@ -541,14 +540,6 @@ failed_changes:
         free(changes);
         return -1;
     }
-
-    /* Clean up allocated memory */
-    for (int j = 0; j < change_count; j++) {
-        free(changes[j].text);
-    }
-    free(changes);
-
-    return 0;
 }
 
 int lsp_textDocument_didClose (cJSON *message) {

@@ -30,7 +30,8 @@ Test (test_lsp, test_initialize) {
         "  }\n"
         "}";
 
-    initialize->content = malloc(strlen(content) + 10);
+    size_t content_len = strlen(content);
+    initialize->content = malloc(content_len + 1);
     if (initialize->content == NULL) {
         /* Handle allocation failure */
         free(initialize);
@@ -47,21 +48,6 @@ Test (test_lsp, test_initialize) {
     free(initialize->content);
     free(initialize);
     free(state.client.root_uri);
-}
-
-cJSON* create_server_capabilities (void) {
-    cJSON* capabilities = cJSON_CreateObject();
-    cJSON* syncOptions = cJSON_CreateObject();
-    cJSON_AddBoolToObject(syncOptions, "openClose", cJSON_True);
-
-    // 0 = None, 1 = Full, 2 = Incremental
-    cJSON_AddNumberToObject(syncOptions, "change", 2);
-    cJSON_AddBoolToObject(syncOptions, "willSave", cJSON_True);
-    cJSON_AddBoolToObject(syncOptions, "didSave", cJSON_True);
-    cJSON_AddBoolToObject(syncOptions, "willSaveWaitUntil", cJSON_True);
-    cJSON_AddItemToObject(capabilities, "textDocumentSync", syncOptions);
-
-    return capabilities;
 }
 
 
@@ -132,7 +118,100 @@ Test (test_lsp, test_initialize_w_sync) {
     free(initialize->content);
     free(initialize);
     free(state.client.root_uri);
+    free(state.error.msg);
 }
+Test (test_lsp, test_initialized) {
+
+    const char* content =
+        "{\n"
+        "    \"jsonrpc\": \"2.0\",\n"
+        "    \"id\": 1,\n"
+        "    \"method\": \"initialize\",\n"
+        "    \"params\": {\n"
+        "        \"processId\": 12345,\n"
+        "        \"clientInfo\": {\n"
+        "            \"name\": \"Visual Studio Code\",\n"
+        "            \"version\": \"1.60.0\"\n"
+        "        },\n"
+        "        \"rootPath\": \"/home/user/project\",\n"
+        "        \"rootUri\": \"file:///home/user/project\",\n"
+        "        \"capabilities\": {\n"
+        "            \"workspace\": {\n"
+        "                \"applyEdit\": true,\n"
+        "                \"didChangeConfiguration\": {\n"
+        "                    \"dynamicRegistration\": true\n"
+        "                },\n"
+        "                \"didChangeWatchedFiles\": {\n"
+        "                    \"dynamicRegistration\": true\n"
+        "                }\n"
+        "            },\n"
+        "            \"textDocument\": {\n"
+        "                \"synchronization\": {\n"
+        "                    \"willSave\": true,\n"
+        "                    \"willSaveWaitUntil\": true,\n"
+        "                    \"didSave\": true,\n"
+        "                    \"change\": 2\n"
+        "                },\n"
+        "                \"completion\": {\n"
+        "                    \"dynamicRegistration\": true,\n"
+        "                    \"completionItem\": {\n"
+        "                        \"snippetSupport\": true,\n"
+        "                        \"commitCharactersSupport\": true,\n"
+        "                        \"documentationFormat\": [\"markdown\", "
+        "\"plaintext\"],\n"
+        "                        \"deprecatedSupport\": true\n"
+        "                    },\n"
+        "                    \"contextSupport\": true\n"
+        "                }\n"
+        "            }\n"
+        "        },\n"
+        "        \"trace\": \"verbose\"\n"
+        "    }\n"
+        "}";
+
+    msg_t* initialize = malloc(sizeof(msg_t));
+    initialize->content = malloc(strlen(content) + 10);
+    if (initialize->content == NULL) {
+        /* Handle allocation failure */
+        free(initialize);
+        return;
+    }
+
+    strcpy(initialize->content, content);
+    initialize->len = strlen(initialize->content);
+    LspState state = {0};
+    state.client.shutdown_requested = false;
+
+    fprintf(stderr, "Sendine initialize method!\n");
+    /* Send our initialise method */
+    pipeline_dispatcher(stdout, initialize, &state);
+
+
+    free(initialize->content);
+    free(initialize);
+
+    char *initialized_msg =  "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"initialized\",\n  \"params\": {}\n}\n";
+
+    initialize = malloc(sizeof(msg_t));
+    initialize->content = malloc(strlen(initialized_msg) + 1);
+    if (initialize->content == NULL) {
+        /* Handle allocation failure */
+        free(initialize);
+        return;
+    }
+
+    strcpy(initialize->content, initialized_msg);
+    initialize->len = strlen(initialize->content);
+
+    fprintf(stderr, "Sendine client initialized method!\n");
+    pipeline_dispatcher(stdout, initialize, &state);
+
+    free(initialize->content);
+    free(initialize);
+    free(state.client.root_uri);
+    free(state.error.msg);
+}
+
 
 Test (test_lsp, test_doc_DidOpen) {
 

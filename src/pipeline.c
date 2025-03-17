@@ -71,12 +71,8 @@ u64 pipeline_parse_content_len (char *text) {
         ++end;
     }
 
-    /* If the end characters are neither of these, then something is wrong */
-    if (*end != '\0' && *end != '\r' && *end != '\n') {
-        return 0;
-    }
+    assert (*end == '\0');
 
-    /* printf("Returning length: `%lld`\n", length); */
     return length;
 }
 

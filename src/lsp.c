@@ -32,8 +32,9 @@ bool clients_json_valid (cJSON *message) {
     return validity;
 }
 
-/* Creates a message with the minimal set of features to adhere to the LSP
- * specification */
+/** Creates a message with the minimal set of features to adhere to the LSP
+ *  specification.
+ **/
 static inline cJSON *base_response (double id) {
     assert(id > 0);
 
@@ -46,7 +47,7 @@ static inline cJSON *base_response (double id) {
     return response;
 }
 
-/* TODO Finish this. */
+
 static int detect_sync_capabilities (cJSON *syncCapabilitiesJSON,
                                      LspClient *client) {
 

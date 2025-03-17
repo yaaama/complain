@@ -28,10 +28,13 @@ static void pipeline_send(FILE *dest, LspState *state);
 static inline bool is_header_break_line(char *line);
 static inline bool valid_message(msg_t *message);
 
-/* Parse Content Length
- * ********************************************************/
-/* Takes a Content Length header line, and tries to parse the length value from
-it.  */
+/**
+ * pipeline_parse_content_len
+ * Parses a `Content-Length: x` string, and returns the number value x.
+ *
+ * Arguments: `char *`, is the string to be parsed.
+ * Returns: `unsigned long long`, the Content-Length header value.
+ **/
 u64 pipeline_parse_content_len (char *text) {
 
     assert(text);
@@ -77,7 +80,13 @@ u64 pipeline_parse_content_len (char *text) {
     return length;
 }
 
-/* Searches for the break \r\n */
+/**
+ * is_header_break_line
+ * Searches for `\r\n\r\n` within `char *`.
+ *
+ * Arguments: `char *` the string to search.
+ * Returns: true if found, false otherwise.
+ **/
 static inline bool is_header_break_line (char *line) {
 
     assert(line);
@@ -95,6 +104,20 @@ static inline bool is_header_break_line (char *line) {
     return false;
 }
 
+/**
+ * pipeline_read
+ * Will read from file descriptor indefinitely until it encounters a LSP
+ headerbreak,
+ * it will then return the contents read to the out parameter.
+ *
+ * Arguments: `FILE * to_read`, where to read from.
+ *            `msg_t *out` , where contents read is stored.
+ * Returns: Int 0 when success, -1 if failure.
+ *
+ * It is considered a failure if any of the parameters received are NULL,
+   if the message length does not match with the `Content-Length` given, or if
+   the content length given is invalid.
+ **/
 /* Reads from fd and assigns the message to *out */
 int pipeline_read (FILE *to_read, msg_t *out) {
 

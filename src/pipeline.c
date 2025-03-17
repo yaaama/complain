@@ -118,16 +118,10 @@ static inline bool is_header_break_line (char *line) {
    if the message length does not match with the `Content-Length` given, or if
    the content length given is invalid.
  **/
-/* Reads from fd and assigns the message to *out */
 int pipeline_read (FILE *to_read, msg_t *out) {
 
-    if (!to_read) {
-        log_debug("File to read is NULL.\n");
-        return -1;
-    }
-
-    if (!out) {
-        log_debug("message struct is NULL.\n");
+    if (!to_read || !out) {
+        log_debug("FILE or *out param is NULL.\n");
         return -1;
     }
 
@@ -543,8 +537,8 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
     LspState *state = NULL;
     state = calloc(sizeof(LspState), 1);
     if (!state) {
-        log_err(COMPLAIN_Err_OutOfMem);
-        exit(1);
+        log_err("Out of memory.");
+        exit(-1);
     }
     state->client.shutdown_requested = false;
     state->client.initialized = false;

@@ -38,6 +38,7 @@ bool clients_json_valid (cJSON *message) {
 static inline cJSON *base_response (double id) {
     assert(id > 0);
 
+
     /* response object */
     cJSON *response = cJSON_CreateObject();
     cJSON *r_jsonrpc = cJSON_CreateString("2.0");

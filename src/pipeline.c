@@ -131,7 +131,7 @@ int pipeline_read (FILE *to_read, msg_t *out) {
     while (true) {
 
         if (fgets(line, buffer_size, to_read) == NULL) {
-            return 0;
+            return -1;
         }
 
         if (is_header_break_line(line)) {
@@ -527,6 +527,7 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
         log_err("Invalid FILE stream.");
         return -1;
     }
+
 
     msg_t message = {0};
     message.method = UNKNOWN;

@@ -45,7 +45,8 @@ u64 pipeline_parse_content_len (char *text) {
     const char *content_len_prefix = "Content-Length:";
     u32 prefix_len = strlen(content_len_prefix);
 
-    /* When the text we are given does not match 'Content-Length:' */
+    /* When the text we are given does not match 'Content-Length:', exit with 0
+    length. */
     if (strncmp(content_len_prefix, text, prefix_len) != 0) {
         return 0;
     }
@@ -53,7 +54,7 @@ u64 pipeline_parse_content_len (char *text) {
     /* Skip over the 'Content-Length:' part and go to the number */
     char *beginning = text + prefix_len;
 
-    /* Skip over whitespace */
+    /* Skip over leading whitespace */
     beginning = trim_leading_ws(beginning);
 
     char *end;
@@ -71,7 +72,7 @@ u64 pipeline_parse_content_len (char *text) {
         ++end;
     }
 
-    assert (*end == '\0');
+    assert(*end == '\0');
 
     return length;
 }
@@ -121,12 +122,16 @@ int pipeline_read (FILE *to_read, msg_t *out) {
         return -1;
     }
 
-    char line[buffer_size];
-    char prev_line[buffer_size];
+    /* We keep the previous line because we are searching for the
+    headerbreak which is on the line AFTER the Content-Length. */
+    char prev_line[buffer_size] = {0};
+    /* Current line we are reading */
+    char line[buffer_size] = {0};
 
     while (true) {
 
         if (fgets(line, buffer_size, to_read) == NULL) {
+            log_debug("Could not read from file.");
             return -1;
         }
 
@@ -134,7 +139,6 @@ int pipeline_read (FILE *to_read, msg_t *out) {
             log_debug("Found header break!");
             break;
         }
-
         memcpy(prev_line, line, buffer_size);
     }
 
@@ -263,6 +267,7 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
     fresh_str = calloc(sizeof(char), message->len + 1);
     if (!fresh_str) {
         log_err("Failed to allocate mem. Exiting.");
+        exit(-1);
     }
 
     memcpy(fresh_str, message->content, message->len);
@@ -523,7 +528,6 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
         log_err("Invalid FILE stream.");
         return -1;
     }
-
 
     msg_t message = {0};
     message.method = UNKNOWN;

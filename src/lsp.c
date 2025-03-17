@@ -151,7 +151,7 @@ int lsp_initialize (LspState *state, cJSON *message) {
 
     cJSON *id_json = cJSON_GetObjectItem(message, "id");
     if (!cJSON_IsNumber(id_json)) {
-        log_err("`id` does not exist in this message.");
+        log_err("`id` is not a valid number.");
         error_code = RPC_InvalidRequest;
         goto failed;
     }

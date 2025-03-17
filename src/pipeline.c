@@ -276,13 +276,7 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
         goto pre_dispatch_error_cleanup;
     }
 
-    char *method_str = cJSON_GetStringValue(method);
-
-    if (!method_str) {
-        log_debug("Method string is not initialised.");
-        return_val = RPC_MethodNotFound;
-        goto pre_dispatch_error_cleanup;
-    }
+    char *method_str = method->valuestring;
 
     int methodtype = pipeline_determine_method_type(method_str);
     if (methodtype < 0) {

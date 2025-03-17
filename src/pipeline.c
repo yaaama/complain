@@ -220,29 +220,10 @@ static inline int valid_message (msg_t *message) {
     return 1;
 }
 
-/* Determines whether we are exiting gracefully or abruptly, or still waiting
-for a 'exit' method. */
-static inline int shutdown_retcode (bool sdn, int method_type) {
-
-    /* Successful exit */
-    if ((sdn == true) && (method_type == exit_)) {
-        log_info("Preparing to now gracefully exit.");
-        return COMPLAIN_GOOD_EXIT;
-    }
-    if ((sdn == true) && (method_type != exit_)) {
-        log_info(
-            "Ignoring all methods except `exit` whilst in shutdown state.");
-        return COMPLAIN_REQ_AFTER_SDN;
-    }
-    if ((sdn == false) && (method_type == exit_)) {
-        log_info(
-            "Exiting abruptly due to `exit` method received. Next time "
-            "send shutdown request first.");
-        return COMPLAIN_EXIT_ABRUPT;
+        return false;
     }
 
-    /* Else just return -1 */
-    return -1;
+    return true;
 }
 
 /* Takes a message, and then acts on it. */

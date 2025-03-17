@@ -160,6 +160,7 @@ int pipeline_read (FILE *to_read, msg_t *out) {
     if (read_len != content_len) {
         log_debug("Bytes read (`%llu`) does not match content length (`%llu`)",
                   read_len, content_len);
+        free(out->content);
         return -1;
     }
 

@@ -61,6 +61,6 @@ void trim_trailing_ws(char *str, u64 len);
 
 char *trim_leading_ws(char *str);
 
-bool xis_space(char c);
+int xis_space(char c);
 
 #endif  // COMMON_H_

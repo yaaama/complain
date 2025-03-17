@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <stdbool.h>
 
-bool xis_space (const char c) {
+int xis_space (const char c) {
     return (c == ' ' || c == '\n' || c == '\f' || c == '\t' || c == '\r' ||
             c == '\v');
 }

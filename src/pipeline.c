@@ -206,20 +206,14 @@ static inline int valid_message (msg_t *message) {
 
     if (!message) {
         log_debug("Uninitialised message struct!");
-        return 0;
+        return false;
     }
     if (!message->content) {
         log_debug("Uninitialised message content!");
-        return 0;
+        return false;
     }
     if (!message->len) {
         log_debug("Uninitialised message length!");
-        return 0;
-    }
-
-    return 1;
-}
-
         return false;
     }
 

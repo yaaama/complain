@@ -26,6 +26,8 @@ typedef float f32;
 typedef double f64;
 
 #define COMPLAIN_Err_OutOfMem "Out of memory! Exiting."
+#define true 1
+#define false 0
 
 #define ARRAY_LENGTH(a) (sizeof((a)) / sizeof(((a)[0])))
 

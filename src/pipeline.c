@@ -25,8 +25,8 @@
 #endif
 
 static void pipeline_send(FILE *dest, LspState *state);
-static inline bool is_header_break_line(char *line);
-static inline bool valid_message(msg_t *message);
+static inline int is_header_break_line(char *line);
+static inline int valid_message(msg_t *message);
 
 /**
  * pipeline_parse_content_len
@@ -84,17 +84,13 @@ u64 pipeline_parse_content_len (char *text) {
  * Arguments: `char *` the string to search.
  * Returns: true if found, false otherwise.
  **/
-static inline bool is_header_break_line (char *line) {
+static inline int is_header_break_line (char *line) {
 
     assert(line);
 
-    if (!line) {
-        log_warn("Received NULL ptr");
-        return false;
-    }
-
     const char *header_break = "\r\n";
 
+    /* If it matches, return true */
     if (strcmp(header_break, (line)) == 0) {
         return true;
     }
@@ -206,22 +202,22 @@ int pipeline_determine_method_type (char *method_str) {
 }
 
 /* Checks for validity of a message. */
-static inline bool valid_message (msg_t *message) {
+static inline int valid_message (msg_t *message) {
 
     if (!message) {
         log_debug("Uninitialised message struct!");
-        return false;
+        return 0;
     }
     if (!message->content) {
         log_debug("Uninitialised message content!");
-        return false;
+        return 0;
     }
     if (!message->len) {
         log_debug("Uninitialised message length!");
-        return false;
+        return 0;
     }
 
-    return true;
+    return 1;
 }
 
 /* Determines whether we are exiting gracefully or abruptly, or still waiting

@@ -9,7 +9,7 @@
 #include "lsp.h"
 
 typedef enum method_type {
-    UNKNOWN,
+    UNKNOWN = 0,
     initialize,
     initialized,
     textDocument_didOpen,

@@ -226,7 +226,6 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
     /* assert(dest && message && state); */
 
     int return_val = 0;
-
     cJSON *json = NULL;
 
     if (!valid_message(message)) {
@@ -235,6 +234,7 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
         goto pre_dispatch_error_cleanup;
     }
 
+#if 0
     char *fresh_str = NULL;
     fresh_str = calloc(sizeof(char), message->len + 1);
     if (!fresh_str) {
@@ -248,6 +248,9 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
     /* Parse the string into JSON */
     json = cJSON_Parse(fresh_str);
     free(fresh_str);
+#endif  // 0
+
+    json = cJSON_Parse(message->content);
 
     /* Check if JSON has been parsed correctly */
     if (json == NULL) {
@@ -271,7 +274,7 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
     cJSON *method = cJSON_GetObjectItem(json, "method");
 
     if (!cJSON_IsString(method)) {
-        log_debug("Could not retrieve `method` item from JSON.");
+        log_debug("Could not retrieve `method` from JSON.");
         return_val = RPC_MethodNotFound;
         goto pre_dispatch_error_cleanup;
     }
@@ -296,16 +299,12 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
         return COMPLAIN_GOOD_EXIT;
     }
 
-    message->method = methodtype;
-
     /* Return value */
     int result = 0;
 
     log_info("Message type: `%s`", method_str);
-    /* Our response, if we have any. */
-    char *response = NULL;
 
-    switch (message->method) {
+    switch (methodtype) {
 
         case (initialize):
             result = lsp_initialize(state, json);

@@ -391,6 +391,28 @@ cJSON *create_error_object (int client_msg_id, int err_code, char *message) {
     return errJSON;
 }
 
+void add_content_length_hdr (char *str, size_t len, char *out) {
+    assert(str);
+    assert(len > 0);
+    assert(out == NULL);
+    char temp[buffer_size] = {0};
+    int tempheader_size = 0;
+    tempheader_size =
+        snprintf(temp, buffer_size, "Content-Length: %zu\r\n\r\n", len);
+
+    if (tempheader_size <= 0) {
+        COMPLAIN_UNREACHABLE("temp header length is invalid... aborting.");
+    }
+
+    size_t message_size = (tempheader_size + len + 1);
+    out = calloc(sizeof(char), message_size);
+    int final_size = snprintf(out, message_size - 1, "%s%s", temp, str);
+
+    if (final_size <= 0) {
+        COMPLAIN_UNREACHABLE("Our final message is of an invalid size!");
+    }
+}
+
 int handle_lsp_code (LspState *state, int lsp_result) {
 
     assert(state);
@@ -471,12 +493,25 @@ int handle_lsp_code (LspState *state, int lsp_result) {
     cJSON_AddNumberToObject(errJSON, "code", err_code);
     cJSON_AddStringToObject(errJSON, "message", msg);
 
-    char *err_response = cJSON_Print(errJSON);
+    char *err_response = NULL;
+    err_response = cJSON_Print(errJSON);
 
-    fprintf(stderr, "%s", err_response);
+    if (!err_response) {
+        log_err("Could not create error object... Exiting.");
+        exit(-1);
+    }
+
+    state->reply.msg = err_response;
+    state->reply.msg_len = strlen(err_response);
+
+    char *final_msg = NULL;
+    add_content_length_hdr(err_response, state->reply.msg_len, final_msg);
+
+    fprintf(stdout, "%s", final_msg);
 
     cJSON_Delete(errJSON);
     free(err_response);
+    free(final_msg);
 
     return 0;
 }

@@ -345,10 +345,6 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
 
     if (state->has_msg) {
         pipeline_send(dest, state);
-        state->reply.msg_len = 0;
-        state->has_msg = false;
-        free(state->reply.header);
-        free(state->reply.msg);
     }
 
     cJSON_Delete(json);
@@ -365,19 +361,18 @@ pre_dispatch_error_cleanup:
 }
 
 static inline void pipeline_send (FILE *dest, LspState *state) {
-    log_debug("Sending message:");
 
-    /* Sometimes we don't need to send a message */
-    if (!state) {
-        log_debug("Invalid state object given.");
-        return;
-    }
+    assert(state && state->reply.msg);
+    log_debug("Sending message of length `%zu`:\n`%s`", state->reply.msg_len,
+              state->reply.msg);
 
-    if (state->has_msg) {
-        log_debug("`%s%s`", state->reply.header, state->reply.msg);
-        (void) fprintf(dest, "%s%s", state->reply.header, state->reply.msg);
-        (void) fflush(dest);
-    }
+    /* log_debug("`%s%s`", state->reply.header, state->reply.msg); */
+    fprintf(dest, "%s%s", state->reply.header, state->reply.msg);
+    fflush(dest);
+    state->reply.msg_len = 0;
+    free(state->reply.header);
+    free(state->reply.msg);
+    state->has_msg = false;
 }
 
 cJSON *create_error_object (int client_msg_id, int err_code, char *message) {

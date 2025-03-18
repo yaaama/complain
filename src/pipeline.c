@@ -561,14 +561,12 @@ int init_pipeline (FILE *to_read, FILE *to_send) {
         lsp_result = pipeline_dispatcher(to_send, &message, state);
 
         /* Free the content after processing */
-        if (message.content) {
-            free(message.content);
-            message.len = 0;
-        }
+        free(message.content);
+        message.len = 0;
 
         if (lsp_result < 0) {
-            log_err("Dispatcher has encountered a problem, returning.");
-            return lsp_result;
+            log_err("Dispatcher finished with error code `%d`");
+            handle_lsp_code(state, lsp_result);
         }
     }
 }

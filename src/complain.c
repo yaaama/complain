@@ -7,7 +7,7 @@
 
 /* Main entry point */
 int main (void) {
-    log_init_file("log.txt");
+    yama_log_init_file(NULL);
     log_info("We've begun!");
     int ret_code = init_pipeline(stdin, stdout);
     if (ret_code) {

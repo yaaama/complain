@@ -2,6 +2,7 @@
 #define LOGGING_H_
 
 #include <stddef.h>
+#include <stdio.h>
 
 /* Colour codes */
 #define RED "\x1b[31m"
@@ -47,7 +48,7 @@ typedef enum {
     log_formatted_input(__FILE__, __func__, __LINE__, LOG_TYPE_NONE, \
                         __VA_ARGS__);
 
-int log_init_file(const char *file_path);
+int yama_log_init_file(FILE *file);
 
 void log_formatted_input(const char *filename, const char *func_name,
                          size_t line_num, log_type_e log_type, char *format,

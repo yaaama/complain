@@ -161,7 +161,7 @@ void log_formatted_input (const char *filename, const char *func_name,
 
     // Check if color output is enabled and if output is to a terminal
     if (log_opts.log_file == stdout || log_opts.log_file == stderr) {
-        if (&log_enable_color_output) {
+        if (log_opts.enable_color_output) {
             (void) fprintf(log_opts.log_file, "%s", color_code);
         }
     }

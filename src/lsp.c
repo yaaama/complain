@@ -38,7 +38,6 @@ bool clients_json_valid (cJSON *message) {
 static inline cJSON *base_response (double id) {
     assert(id > 0);
 
-
     /* response object */
     cJSON *response = cJSON_CreateObject();
     cJSON *r_jsonrpc = cJSON_CreateString("2.0");
@@ -47,7 +46,6 @@ static inline cJSON *base_response (double id) {
     cJSON_AddItemToObject(response, "id", r_id);
     return response;
 }
-
 
 static int detect_sync_capabilities (cJSON *syncCapabilitiesJSON,
                                      LspClient *client) {

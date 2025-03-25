@@ -1,7 +1,6 @@
 DEBUG := 1
 SANITIZER := 1
 
-include .env
 
 # Project configuration
 NAME := complain

@@ -1,0 +1,4 @@
+interceptor_via_lib:Criterion
+
+# interceptor_via_fun:NameOfCFunctionToSuppress
+# interceptor_via_fun:-[ClassName objCMethodToSuppress:]

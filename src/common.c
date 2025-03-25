@@ -25,8 +25,6 @@ void trim_trailing_ws (char *str, u64 len) {
 
     char *end = str + len - 1;
 
-    /* assert((str + len - 1) > (end)); */
-
     while ((end > str) && (xis_space(*end))) {
         --end;
     }

@@ -393,7 +393,7 @@ cJSON *create_error_object (int client_msg_id, int err_code, char *message) {
 void add_content_length_hdr (char *str, size_t len, char *out) {
     assert(str);
     assert(len > 0);
-    assert(out == NULL);
+
     char temp[buffer_size] = {0};
     int tempheader_size = 0;
     tempheader_size =

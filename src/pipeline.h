@@ -10,14 +10,14 @@
 
 typedef enum method_type {
     UNKNOWN = 0,
-    initialize,
-    initialized,
-    textDocument_didOpen,
-    textDocument_completion,
-    textDocument_didChange,
-    textDocument_didClose,
-    shutdown,
-    exit_,
+    LSP_INITIALIZE,
+    LSP_INITIALIZED,
+    LSP_TEXTDOC_DIDOPEN,
+    LSP_TEXTDOC_COMPLETION,
+    LSP_TEXTDOC_DIDCHANGE,
+    LSP_TEXTDOC_DIDCLOSE,
+    LSP_SHUTDOWN,
+    LSP_EXIT_,
 } method_type;
 
 typedef struct msg_t {

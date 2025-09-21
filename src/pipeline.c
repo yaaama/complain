@@ -175,28 +175,28 @@ int pipeline_determine_method_type (char *method_str) {
     }
 
     if (strcmp(method_str, "initialize") == 0) {
-        return initialize;
+        return LSP_INITIALIZE;
     }
     if (strcmp(method_str, "initialized") == 0) {
-        return initialized;
+        return LSP_INITIALIZED;
     }
     if (strcmp(method_str, "shutdown") == 0) {
-        return shutdown;
+        return LSP_SHUTDOWN;
     }
     if (strcmp(method_str, "exit") == 0) {
-        return exit_;
+        return LSP_EXIT_;
     }
     if (strcmp(method_str, "textDocument/didOpen") == 0) {
-        return textDocument_didOpen;
+        return LSP_TEXTDOC_DIDOPEN;
     }
     if (strcmp(method_str, "textDocument/didChange") == 0) {
-        return textDocument_didChange;
+        return LSP_TEXTDOC_DIDCHANGE;
     }
     if (strcmp(method_str, "textDocument/didClose") == 0) {
-        return textDocument_didClose;
+        return LSP_TEXTDOC_DIDCLOSE;
     }
     if (strcmp(method_str, "textDocument/completion") == 0) {
-        return textDocument_completion;
+        return LSP_TEXTDOC_COMPLETION;
     }
     return -1;
 }
@@ -290,7 +290,7 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
 
     /* Handle when we are shutting down or when we receive exit method */
     if (state->client.shutdown_requested == true) {
-        if (methodtype != exit_) {
+        if (methodtype != LSP_EXIT_) {
             log_info("Ignoring methods whilst waiting for 'exit'");
             return_val = COMPLAIN_REQ_AFTER_SDN;
             goto pre_dispatch_error_cleanup;
@@ -306,28 +306,28 @@ int pipeline_dispatcher (FILE *dest, msg_t *message, LspState *state) {
 
     switch (methodtype) {
 
-        case (initialize):
+        case (LSP_INITIALIZE):
             result = lsp_initialize(state, json);
             break;
-        case (initialized):
+        case (LSP_INITIALIZED):
             result = lsp_initialized(state, json);
             break;
-        case (textDocument_didOpen):
+        case (LSP_TEXTDOC_DIDOPEN):
             result = lsp_textDocument_didOpen(state, json);
             break;
-        case (textDocument_didChange):
+        case (LSP_TEXTDOC_DIDCHANGE):
             result = lsp_textDocument_didChange(json);
             break;
-        case (textDocument_didClose):
+        case (LSP_TEXTDOC_DIDCLOSE):
             result = lsp_textDocument_didClose(json);
             break;
-        case (textDocument_completion):
+        case (LSP_TEXTDOC_COMPLETION):
             result = lsp_textDocument_completion(json);
             break;
-        case (shutdown):
+        case (LSP_SHUTDOWN):
             result = lsp_shutdown(state, json);
             break;
-        case (exit_):
+        case (LSP_EXIT_):
             result = lsp_exit(state, json);
             break;
         default:
